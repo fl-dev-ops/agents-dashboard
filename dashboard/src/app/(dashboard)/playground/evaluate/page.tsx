@@ -42,9 +42,9 @@ export default function EvaluatePage() {
   const [resultUsage, setResultUsage] = useState<{ prompt_tokens: number; completion_tokens: number; total_tokens: number } | null>(null);
   const [resultDurationMs, setResultDurationMs] = useState<number | null>(null);
 
-  const calls = useQuery(trpc.calls.list.queryOptions());
+  const calls = useQuery(trpc.calls.list.queryOptions({ pageSize: 200 }));
   const models = useQuery(trpc.evaluations.models.queryOptions());
-  const allCalls = (calls.data ?? []) as Array<{ id: string; roomName: string; status: string; transcript: unknown; agent: { name: string } | null }>;
+  const allCalls = ((calls.data as { rows: Array<{ id: string; roomName: string; status: string; transcript: unknown; agent: { name: string } | null }> } | undefined)?.rows ?? []);
   const completedCalls = allCalls.filter((c) => c.status === "COMPLETED" && c.transcript);
 
   const runAdHoc = useMutationWithToast(

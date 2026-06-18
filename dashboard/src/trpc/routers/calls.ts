@@ -3,7 +3,7 @@ import { start } from "workflow/api";
 import { z } from "zod";
 
 import { env, getCallWebhookUrl } from "@/lib/env";
-import { buildAgentMetadata, createAgentDispatch } from "@/lib/livekit";
+import { buildAgentMetadata, createAgentDispatch, deleteLiveKitRoom } from "@/lib/livekit";
 import { prisma } from "@/lib/prisma";
 import { baseProcedure, createTRPCRouter } from "@/trpc/init";
 import { dialPlaygroundNumberWorkflow } from "@/workflows/dial-playground-number";
@@ -161,35 +161,84 @@ export const callsRouter = createTRPCRouter({
       };
     }),
   list: baseProcedure
-    .input(z.object({ toNumber: e164Schema.optional(), phoneNumber: e164Schema.optional(), days: z.number().int().min(1).max(30).optional() }).optional())
-    .query(({ input }) => {
-      const createdAt = input?.days
-        ? { gte: new Date(Date.now() - input.days * 24 * 60 * 60 * 1000) }
-        : undefined;
+    .input(
+      z
+        .object({
+          search: z.string().optional(),
+          status: z.array(z.string()).optional(),
+          agentId: z.string().optional(),
+          type: z.enum(["web", "sip"]).optional(),
+          from: z.string().optional(),
+          to: z.string().optional(),
+          sortBy: z.enum(["createdAt", "durationMs", "status"]).optional(),
+          sortDir: z.enum(["asc", "desc"]).optional(),
+          page: z.number().int().min(1).optional(),
+          pageSize: z.number().int().min(1).max(100).optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      const page = input?.page ?? 1;
+      const pageSize = input?.pageSize ?? 50;
+      const sortBy = input?.sortBy ?? "createdAt";
+      const sortDir = input?.sortDir ?? "desc";
 
-      if (input?.phoneNumber) {
-        return prisma.call.findMany({
-          where: {
-            createdAt,
-            OR: [
-              { toNumber: input.phoneNumber },
-              { fromNumber: input.phoneNumber },
-            ],
-          },
-          include: { agent: true, phoneNumber: { include: { connection: true } } },
-          orderBy: { createdAt: "desc" },
-          take: 200,
-        });
+      const where: Record<string, unknown> = {};
+
+      // Status filter
+      if (input?.status && input.status.length > 0) {
+        where.status = { in: input.status };
       }
-      return prisma.call.findMany({
-        where: {
-          createdAt,
-          ...(input?.toNumber ? { toNumber: input.toNumber } : {}),
-        },
-        include: { agent: true, phoneNumber: { include: { connection: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      });
+
+      // Agent filter
+      if (input?.agentId) {
+        where.agentId = input.agentId;
+      }
+
+      // Type filter
+      if (input?.type === "sip") {
+        where.OR = [
+          { toNumber: { not: null } },
+          { fromNumber: { not: null } },
+        ];
+      } else if (input?.type === "web") {
+        where.AND = [
+          { toNumber: null },
+          { fromNumber: null },
+        ];
+      }
+
+      // Date range
+      if (input?.from || input?.to) {
+        where.createdAt = {};
+        if (input.from) (where.createdAt as Record<string, Date>).gte = new Date(input.from);
+        if (input.to) (where.createdAt as Record<string, Date>).lte = new Date(input.to + "T23:59:59.999Z");
+      }
+
+      // Text search (room name, ID, agent name, phone numbers)
+      if (input?.search) {
+        const s = input.search;
+        where.OR = [
+          { roomName: { contains: s } },
+          { id: { contains: s } },
+          { toNumber: { contains: s } },
+          { fromNumber: { contains: s } },
+          { agent: { name: { contains: s } } },
+        ];
+      }
+
+      const [rows, total] = await Promise.all([
+        prisma.call.findMany({
+          where,
+          include: { agent: true, phoneNumber: { include: { connection: true } } },
+          orderBy: { [sortBy]: sortDir },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        prisma.call.count({ where }),
+      ]);
+
+      return { rows, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
     }),
   byId: baseProcedure
     .input(z.object({ id: z.string() }))
@@ -324,6 +373,37 @@ export const callsRouter = createTRPCRouter({
           },
         });
         return { started: 0, toNumbers: [], callId: updated.id, roomName: updated.roomName };
+      }
+    }),
+
+  /**
+   * End an active call by deleting the LiveKit room.
+   * This triggers the agent's on_session_end() which posts the completion
+   * webhook with transcript, recordings, etc.
+   */
+  hangup: baseProcedure
+    .input(z.object({ callId: z.string() }))
+    .mutation(async ({ input }) => {
+      const call = await prisma.call.findUniqueOrThrow({
+        where: { id: input.callId },
+        select: { id: true, roomName: true, status: true },
+      });
+
+      const inFlight = new Set(["QUEUED", "DIALING", "RINGING", "ACTIVE"]);
+      if (!inFlight.has(call.status)) {
+        return { success: false, reason: "Call already ended" };
+      }
+
+      try {
+        await deleteLiveKitRoom(call.roomName);
+        return { success: true };
+      } catch (error) {
+        // Room may already be gone — treat as success
+        const msg = error instanceof Error ? error.message : String(error);
+        if (msg.includes("not found") || msg.includes("NOT_FOUND")) {
+          return { success: true, reason: "Room already deleted" };
+        }
+        throw error;
       }
     }),
 });

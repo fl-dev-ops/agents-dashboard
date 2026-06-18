@@ -450,8 +450,35 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
     { success: "Description saved" },
   );
 
+  const toggleActive = useMutationWithToast(
+    trpc.agents.update.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
+        queryClient.invalidateQueries(trpc.agents.list.queryFilter());
+      },
+    }),
+    { success: (data) => `Agent ${(data as Record<string, unknown>).isActive ? "activated" : "deactivated"}` },
+  );
+
   return (
     <div className="max-w-3xl space-y-8">
+      <section className="rounded-xl border bg-card px-4 py-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold">Activation</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Inactive agents cannot receive calls or be assigned to phone numbers.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">{agent.isActive ? "Active" : "Inactive"}</span>
+            <Switch
+              checked={Boolean(agent.isActive)}
+              onCheckedChange={(value) => toggleActive.mutate({ id: agentId, data: { isActive: value } })}
+              disabled={toggleActive.isPending}
+            />
+          </div>
+        </div>
+      </section>
+
       <section className="rounded-xl border bg-card p-4">
         <div>
           <h2 className="text-base font-semibold">Description</h2>

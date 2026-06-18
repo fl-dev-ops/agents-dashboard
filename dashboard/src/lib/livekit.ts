@@ -1,5 +1,5 @@
 import { RoomConfiguration, SIPDispatchRuleInfo } from "@livekit/protocol";
-import { AgentDispatchClient, SipClient } from "livekit-server-sdk";
+import { AgentDispatchClient, RoomServiceClient, SipClient } from "livekit-server-sdk";
 
 import { ProvisioningStatus } from "@/generated/prisma/client";
 import type { Agent } from "@/generated/prisma/client";
@@ -63,6 +63,11 @@ function createDispatchClient() {
 function createSipClient() {
   const livekit = requireLiveKitEnv();
   return new SipClient(livekit.url, livekit.apiKey, livekit.apiSecret);
+}
+
+function createRoomServiceClient() {
+  const livekit = requireLiveKitEnv();
+  return new RoomServiceClient(livekit.url, livekit.apiKey, livekit.apiSecret);
 }
 
 // ---------------------------------------------------------------------------
@@ -502,4 +507,17 @@ export async function connectPhoneNumberToAgent(input: {
     livekitOutboundTrunkId: livekitOutbound.sipTrunkId,
     livekitDispatchRuleId: dispatchRule.sipDispatchRuleId,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Room management
+// ---------------------------------------------------------------------------
+
+/**
+ * Delete a LiveKit room. This disconnects all participants and triggers
+ * the agent's on_session_end() which posts the completion webhook.
+ */
+export async function deleteLiveKitRoom(roomName: string): Promise<void> {
+  const roomService = createRoomServiceClient();
+  await roomService.deleteRoom(roomName);
 }

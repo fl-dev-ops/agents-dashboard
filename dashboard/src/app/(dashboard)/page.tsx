@@ -124,8 +124,9 @@ export default function DashboardPage() {
 
 function DashboardContent() {
   const trpc = useTRPC();
-  const calls = useQuery(trpc.calls.list.queryOptions({ days: 30 }));
-  const callRows = useMemo(() => ((calls.data ?? []) as DashboardCall[]), [calls.data]);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const calls = useQuery(trpc.calls.list.queryOptions({ from: thirtyDaysAgo, pageSize: 200 }));
+  const callRows = useMemo(() => ((calls.data as { rows: DashboardCall[] } | undefined)?.rows ?? []) as DashboardCall[], [calls.data]);
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>("all");
 
   const { dayPoints, topNumbers } = useMemo(() => buildInsights(callRows), [callRows]);

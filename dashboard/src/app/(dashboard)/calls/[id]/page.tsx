@@ -1,11 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   IconExternalLink,
   IconFileText,
   IconMicrophone,
   IconPhoto,
+  IconPhoneOff,
   IconPlayerPlay,
   IconRobot,
   IconTimeline,
@@ -20,7 +21,7 @@ import { use } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Transcript } from "@/components/transcript";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Empty,
   EmptyContent,
@@ -39,6 +40,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import type { DashboardCall } from "@/lib/dashboard-types";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 import { useTRPC } from "@/trpc/client";
 import { formatDistanceToNow } from "date-fns";
 
@@ -79,7 +81,8 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
   const activeTab = normalizeTab(searchParams.get("tab"));
 
   const trpc = useTRPC();
-  const IN_FLIGHT = new Set(["QUEUED", "DIALING", "RINGING"]);
+  const queryClient = useQueryClient();
+  const IN_FLIGHT = new Set(["QUEUED", "DIALING", "RINGING", "ACTIVE"]);
   const call = useQuery({
     ...trpc.calls.byId.queryOptions({ id }),
     refetchInterval: (query) => {
@@ -95,6 +98,16 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
     ...trpc.calls.events.queryOptions({ callId: id }),
     enabled: call.isSuccess,
   });
+
+  const hangup = useMutationWithToast(
+    trpc.calls.hangup.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.calls.byId.queryFilter({ id }));
+        queryClient.invalidateQueries(trpc.calls.list.queryFilter());
+      },
+    }),
+    { success: "Call ended" },
+  );
 
   const setActiveTab = (tab: TabValue) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -129,6 +142,7 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
   }
 
   const data = call.data as DashboardCall;
+  const isActive = IN_FLIGHT.has(data.status);
 
   return (
     <div className="flex flex-col gap-8">
@@ -137,20 +151,33 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
         title={<span className="font-mono">{data.roomName}</span>}
         description={data.startedAt ? `Started ${formatDistanceToNow(new Date(data.startedAt), { addSuffix: true })}` : "Not yet started"}
         actions={
-          <Badge
-            variant={
-              data.status === "FAILED" || data.status === "DECLINED"
-                ? "destructive"
-                : data.status === "COMPLETED"
-                  ? "default"
-                  : data.status === "NO_ANSWER" || data.status === "BUSY"
-                    ? "outline"
-                    : "secondary"
-            }
-            className="text-[11px]"
-          >
-            {data.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {isActive && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={hangup.isPending}
+                onClick={() => hangup.mutate({ callId: id })}
+              >
+                <IconPhoneOff data-icon="inline-start" />
+                {hangup.isPending ? "Ending…" : "End call"}
+              </Button>
+            )}
+            <Badge
+              variant={
+                data.status === "FAILED" || data.status === "DECLINED"
+                  ? "destructive"
+                  : data.status === "COMPLETED"
+                    ? "default"
+                    : data.status === "NO_ANSWER" || data.status === "BUSY"
+                      ? "outline"
+                      : "secondary"
+              }
+              className="text-[11px]"
+            >
+              {data.status}
+            </Badge>
+          </div>
         }
       >
         <Breadcrumb>

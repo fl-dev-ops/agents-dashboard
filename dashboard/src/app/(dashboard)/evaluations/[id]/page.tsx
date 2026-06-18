@@ -48,13 +48,13 @@ export default function EvaluationDetailPage({ params }: { params: Promise<{ id:
   const queryClient = useQueryClient();
 
   const config = useQuery(trpc.evaluations.getConfig.queryOptions({ id }));
-  const calls = useQuery(trpc.calls.list.queryOptions());
+  const calls = useQuery(trpc.calls.list.queryOptions({ pageSize: 200 }));
 
   const [activeTab, setActiveTab] = useState<"config" | "run">("config");
   const [selectedCallId, setSelectedCallId] = useState("");
   const [runResult, setRunResult] = useState<RunResult | null>(null);
 
-  const allCalls = (calls.data ?? []) as Array<{ id: string; roomName: string; status: string; transcript: unknown; agent: { name: string } | null }>;
+  const allCalls = ((calls.data as { rows: Array<{ id: string; roomName: string; status: string; transcript: unknown; agent: { name: string } | null }> } | undefined)?.rows ?? []);
   const completedCalls = allCalls.filter((c) => c.status === "COMPLETED" && c.transcript);
 
   const [name, setName] = useState("");
