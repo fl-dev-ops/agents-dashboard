@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useTRPC } from "@/trpc/client";
 
 const POLL_INTERVAL_MS = 1500;
-const SEEN_KEY_PREFIX = "workflow-toast-seen:";
 const DISMISSED_KEY_PREFIX = "workflow-toast-dismissed:";
+const TERMINAL_SHOWN_KEY_PREFIX = "workflow-toast-terminal-shown:";
 
 function loadJsonSet(prefix: string): Set<string> {
   try {
@@ -28,24 +28,14 @@ function saveJsonSet(prefix: string, set: Set<string>) {
   }
 }
 
-function markSeen(id: string) {
-  const s = loadJsonSet(SEEN_KEY_PREFIX);
+function markTerminalShown(id: string) {
+  const s = loadJsonSet(TERMINAL_SHOWN_KEY_PREFIX);
   s.add(id);
-  saveJsonSet(SEEN_KEY_PREFIX, s);
+  saveJsonSet(TERMINAL_SHOWN_KEY_PREFIX, s);
 }
 
-function markDismissed(id: string) {
-  const s = loadJsonSet(DISMISSED_KEY_PREFIX);
-  s.add(id);
-  saveJsonSet(DISMISSED_KEY_PREFIX, s);
-}
-
-function wasDismissed(id: string) {
-  return loadJsonSet(DISMISSED_KEY_PREFIX).has(id);
-}
-
-function wasSeen(id: string) {
-  return loadJsonSet(SEEN_KEY_PREFIX).has(id);
+function wasTerminalShown(id: string) {
+  return loadJsonSet(TERMINAL_SHOWN_KEY_PREFIX).has(id);
 }
 
 type WorkflowRun = {
@@ -85,7 +75,6 @@ export function WorkflowToastProvider() {
       if (!activeIdsRef.current.has(run.id)) {
         // New workflow — show loading toast
         toast.loading(msg, { id: toastId });
-        markSeen(run.id);
       } else if (lastMsg !== msg) {
         // Message changed — update
         toast.loading(msg, { id: toastId });
@@ -94,18 +83,35 @@ export function WorkflowToastProvider() {
       lastMessagesRef.current.set(run.id, msg);
     }
 
-    // Handle terminal workflows not yet seen (e.g. after refresh)
+    // Detect workflows that disappeared from active (completed/failed)
+    for (const prevId of activeIdsRef.current) {
+      if (!currentIds.has(prevId)) {
+        const terminal = (terminalRuns as WorkflowRun[] | undefined)?.find((r) => r.id === prevId);
+        if (terminal && !wasTerminalShown(terminal.id)) {
+          const toastId = `workflow:${terminal.id}`;
+          if (terminal.status === "COMPLETED") {
+            toast.success(terminal.message || terminal.title, { id: toastId });
+          } else if (terminal.status === "FAILED") {
+            toast.error(terminal.message || terminal.title, { id: toastId });
+          }
+          markTerminalShown(terminal.id);
+        }
+      }
+    }
+
+    // Show terminal toasts for workflows that completed before this page loaded
     if (terminalRuns) {
       for (const run of terminalRuns as WorkflowRun[]) {
-        const toastId = `workflow:${run.id}`;
-        if (wasSeen(run.id) || wasDismissed(toastId)) continue;
+        if (currentIds.has(run.id)) continue;
+        if (wasTerminalShown(run.id)) continue;
 
+        const toastId = `workflow:${run.id}`;
         if (run.status === "COMPLETED") {
           toast.success(run.message || run.title, { id: toastId });
         } else if (run.status === "FAILED") {
           toast.error(run.message || run.title, { id: toastId });
         }
-        markSeen(run.id);
+        markTerminalShown(run.id);
       }
     }
 

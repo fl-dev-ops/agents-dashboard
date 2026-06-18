@@ -13,7 +13,7 @@ export function SettingsRow({ title, description, children, className }: Setting
   return (
     <div
       className={cn(
-        "grid gap-3 border-b py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(180px,260px)] sm:items-center",
+        "grid gap-3 border-b py-4 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(180px,260px)] sm:items-start",
         className,
       )}
     >

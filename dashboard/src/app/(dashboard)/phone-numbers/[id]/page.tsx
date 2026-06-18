@@ -569,7 +569,7 @@ function SettingsSection({ phone, invalidate, onActivate }: { phone: Record<stri
     <div className="max-w-3xl space-y-6">
       <section className="rounded-xl border bg-card px-4 py-4">
         <SettingsRow title="Label" description="Operator-facing label for this number.">
-          <div className="flex items-center gap-2">
+          <div className="space-y-3">
             <Input
               value={label}
               onChange={(event) => { setLabel(event.target.value); setLabelChanged(true); }}
@@ -577,21 +577,22 @@ function SettingsSection({ phone, invalidate, onActivate }: { phone: Record<stri
               disabled={!isActive || isWorkflowRunning}
               className="w-64"
             />
-            <Button
-              size="sm"
-              disabled={!isActive || isWorkflowRunning || !labelChanged || updateLabel.isPending}
-              onClick={() => updateLabel.mutate({ id: phone.id as string, data: { label: label || null } })}
-            >
-              {updateLabel.isPending ? <IconLoader className="animate-spin" data-icon="inline-start" /> : null}
-              Save
-            </Button>
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                disabled={!isActive || isWorkflowRunning || !labelChanged || updateLabel.isPending}
+                onClick={() => updateLabel.mutate({ id: phone.id as string, data: { label: label || null } })}
+              >
+                Save
+              </Button>
+            </div>
           </div>
         </SettingsRow>
       </section>
 
       <section className="rounded-xl border bg-card px-4 py-4">
         <SettingsRow title="Routing" description={isActive ? "Which agent handles inbound calls to this number." : "Activate this number before changing its routing."}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="space-y-3">
             <AgentSelect
               value={selectedAgentId}
               onChange={setSelectedAgentId}
@@ -599,18 +600,20 @@ function SettingsSection({ phone, invalidate, onActivate }: { phone: Record<stri
               className="w-64"
             />
             {isActive ? (
-              <Button
-                size="sm"
-                disabled={!canUpdateRouting}
-                onClick={() => assignAgent.mutate({ phoneNumberId: phone.id as string, agentId: selectedAgentId })}
-              >
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={!canUpdateRouting}
+                  onClick={() => assignAgent.mutate({ phoneNumberId: phone.id as string, agentId: selectedAgentId })}
+                >
                 {assignAgent.isPending || isProvisioning ? <IconLoader className="animate-spin" data-icon="inline-start" /> : null}
-                Update routing
-              </Button>
+                Save
+                </Button>
+              </div>
             ) : null}
+            {(assignAgent.isPending || isProvisioning) && <span className="text-xs text-muted-foreground">Provisioning route…</span>}
+            {isDeprovisioning && <span className="text-xs text-muted-foreground">Disconnecting…</span>}
           </div>
-          {(assignAgent.isPending || isProvisioning) && <span className="text-xs text-muted-foreground">Provisioning route…</span>}
-          {isDeprovisioning && <span className="text-xs text-muted-foreground">Disconnecting…</span>}
         </SettingsRow>
       </section>
 
