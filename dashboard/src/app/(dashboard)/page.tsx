@@ -125,7 +125,7 @@ export default function DashboardPage() {
 function DashboardContent() {
   const trpc = useTRPC();
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  const calls = useQuery(trpc.calls.list.queryOptions({ from: thirtyDaysAgo, pageSize: 200 }));
+  const calls = useQuery(trpc.calls.list.queryOptions({ from: thirtyDaysAgo, pageSize: 100, includeConnection: false }));
   const callRows = useMemo(() => ((calls.data as { rows: DashboardCall[] } | undefined)?.rows ?? []) as DashboardCall[], [calls.data]);
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>("all");
 

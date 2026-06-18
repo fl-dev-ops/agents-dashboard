@@ -174,6 +174,7 @@ export const callsRouter = createTRPCRouter({
           sortDir: z.enum(["asc", "desc"]).optional(),
           page: z.number().int().min(1).optional(),
           pageSize: z.number().int().min(1).max(100).optional(),
+          includeConnection: z.boolean().optional(),
         })
         .optional(),
     )
@@ -182,6 +183,7 @@ export const callsRouter = createTRPCRouter({
       const pageSize = input?.pageSize ?? 50;
       const sortBy = input?.sortBy ?? "createdAt";
       const sortDir = input?.sortDir ?? "desc";
+      const includeConnection = input?.includeConnection ?? true;
 
       const where: Record<string, unknown> = {};
 
@@ -230,7 +232,10 @@ export const callsRouter = createTRPCRouter({
       const [rows, total] = await Promise.all([
         prisma.call.findMany({
           where,
-          include: { agent: true, phoneNumber: { include: { connection: true } } },
+          include: {
+            agent: true,
+            phoneNumber: includeConnection ? { include: { connection: true } } : true,
+          },
           orderBy: { [sortBy]: sortDir },
           skip: (page - 1) * pageSize,
           take: pageSize,

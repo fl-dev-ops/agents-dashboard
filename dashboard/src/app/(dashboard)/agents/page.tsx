@@ -163,8 +163,7 @@ export default function AgentsPage() {
                   </TableCell>
                   <TableCell>
                     <div className="min-w-48">
-                      <p className="font-mono text-[13px] text-foreground">{agent.agentId}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Agent ID</p>
+                      <p className="text-[13px] text-foreground">{agent.agentId}</p>
                     </div>
                   </TableCell>
                   <TableCell>
