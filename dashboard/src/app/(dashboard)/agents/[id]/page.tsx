@@ -466,37 +466,6 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
 
   return (
     <div className="max-w-3xl space-y-8">
-      <section className="rounded-xl border bg-card px-4 py-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Activation</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Inactive agents cannot receive calls or be assigned to phone numbers.</p>
-          </div>
-          <Button
-            variant={isActive ? "outline" : "default"}
-            size="sm"
-            onClick={() => setActivateOpen(true)}
-          >
-            {isActive ? "Deactivate" : "Activate"}
-          </Button>
-        </div>
-      </section>
-
-      <DestructiveConfirmationDialog
-        open={activateOpen}
-        onOpenChange={setActivateOpen}
-        title={isActive ? "Deactivate agent" : "Activate agent"}
-        description={
-          isActive
-            ? <>Deactivate &ldquo;{agent.name as string}&rdquo;? It will stop receiving calls and cannot be assigned to new phone numbers.</>
-            : <>Activate &ldquo;{agent.name as string}&rdquo;? It will be available to receive calls and can be assigned to phone numbers.</>
-        }
-        actionLabel={isActive ? "Deactivate" : "Activate"}
-        pendingLabel={isActive ? "Deactivating" : "Activating"}
-        isPending={toggleActive.isPending}
-        onConfirm={() => toggleActive.mutate({ id: agentId, data: { isActive: !isActive } })}
-      />
-
       <section className="rounded-xl border bg-card p-4">
         <div>
           <h2 className="text-base font-semibold">Description</h2>
@@ -519,6 +488,38 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
           </Button>
         </div>
       </section>
+
+      <section className="rounded-xl border bg-card px-4 py-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-base font-semibold">Activation</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Inactive agents cannot receive calls or be assigned to phone numbers.</p>
+          </div>
+          <Button
+            variant={isActive ? "destructive" : "default"}
+            size="sm"
+            className={isActive ? "" : "bg-emerald-600 hover:bg-emerald-700"}
+            onClick={() => setActivateOpen(true)}
+          >
+            {isActive ? "Deactivate" : "Activate"}
+          </Button>
+        </div>
+      </section>
+
+      <DestructiveConfirmationDialog
+        open={activateOpen}
+        onOpenChange={setActivateOpen}
+        title={isActive ? "Deactivate agent" : "Activate agent"}
+        description={
+          isActive
+            ? <>Deactivate &ldquo;{agent.name as string}&rdquo;? It will stop receiving calls and cannot be assigned to new phone numbers.</>
+            : <>Activate &ldquo;{agent.name as string}&rdquo;? It will be available to receive calls and can be assigned to phone numbers.</>
+        }
+        actionLabel={isActive ? "Deactivate" : "Activate"}
+        pendingLabel={isActive ? "Deactivating" : "Activating"}
+        isPending={toggleActive.isPending}
+        onConfirm={() => toggleActive.mutate({ id: agentId, data: { isActive: !isActive } })}
+      />
 
       <section className="rounded-xl border border-destructive/20 bg-card px-4 py-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
