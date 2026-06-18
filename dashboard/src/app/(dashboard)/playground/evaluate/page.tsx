@@ -1,16 +1,17 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { IconArrowLeft, IconPlayerPlay, IconSettings, IconCheck, IconX } from "@tabler/icons-react";
 import Link from "next/link";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTRPC } from "@/trpc/client";
-import { toast } from "sonner";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 
 const DEFAULT_SCHEMA = JSON.stringify(
   {
@@ -46,7 +47,7 @@ export default function EvaluatePage() {
   const allCalls = (calls.data ?? []) as Array<{ id: string; roomName: string; status: string; transcript: unknown; agent: { name: string } | null }>;
   const completedCalls = allCalls.filter((c) => c.status === "COMPLETED" && c.transcript);
 
-  const runAdHoc = useMutation(
+  const runAdHoc = useMutationWithToast(
     trpc.evaluations.runAdHoc.mutationOptions({
       onSuccess: (data) => {
         setResult(data.result);
@@ -54,7 +55,6 @@ export default function EvaluatePage() {
         setResultUsage(data.usage);
         setResultDurationMs(data.durationMs);
       },
-      onError: (err) => toast.error(err.message),
     }),
   );
 

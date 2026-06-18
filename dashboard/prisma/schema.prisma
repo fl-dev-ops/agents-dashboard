@@ -24,9 +24,61 @@ enum PhoneNumberStatus {
 enum ProvisioningStatus {
   PENDING
   PROVISIONING
+  DEPROVISIONING
   ACTIVE
   FAILED
   DISCONNECTED
+}
+
+enum AppWorkflowStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model AppWorkflowRun {
+  id             String            @id @default(cuid())
+  workflowRunId  String?           @unique
+  workflowName   String
+  operation      String
+  status         AppWorkflowStatus @default(QUEUED)
+  phase          String?
+  title          String
+  message        String?
+  resourceType   String?
+  resourceId     String?
+  resourceLabel  String?
+  error          String?
+  result         Json?
+  metadata       Json?
+  idempotencyKey String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  events         AppWorkflowEvent[]
+
+  @@index([status])
+  @@index([operation])
+  @@index([resourceType, resourceId])
+  @@index([idempotencyKey])
+}
+
+model AppWorkflowEvent {
+  id             String         @id @default(cuid())
+  appWorkflowId  String
+  appWorkflow    AppWorkflowRun @relation(fields: [appWorkflowId], references: [id], onDelete: Cascade)
+  status         AppWorkflowStatus
+  phase          String?
+  message        String?
+  eventKey       String?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+
+  @@unique([appWorkflowId, eventKey])
+  @@index([appWorkflowId, createdAt])
 }
 
 enum CallType {

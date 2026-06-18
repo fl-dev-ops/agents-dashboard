@@ -1,18 +1,18 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { IconCheck, IconLoader, IconPhoneCall, IconX } from "@tabler/icons-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { IconLoader, IconPhoneCall, IconX } from "@tabler/icons-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AgentSelect } from "@/components/dashboard/agent-select";
 import { PhoneNumberSelect } from "@/components/dashboard/phone-number-select";
 import { useTRPC } from "@/trpc/client";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 
 const E164_PATTERN = /^\+\d{8,15}$/;
 
@@ -23,27 +23,19 @@ export default function CallPlaygroundPage() {
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [toNumbers, setToNumbers] = useState<string[]>([]);
   const [userId, setUserId] = useState("");
-  const [launchSummary, setLaunchSummary] = useState<string | null>(null);
-  const [launchError, setLaunchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!launchSummary) return;
-    const timer = setTimeout(() => setLaunchSummary(null), 5000);
-    return () => clearTimeout(timer);
-  }, [launchSummary]);
-
-  const createCall = useMutation(
+  const createCall = useMutationWithToast(
     trpc.calls.createPlaygroundCall.mutationOptions({
-      onSuccess: (result) => {
+      onSuccess: () => {
         queryClient.invalidateQueries(trpc.calls.list.queryFilter());
-        setLaunchError(null);
-        setLaunchSummary(`Dispatched ${result.started} call${result.started === 1 ? "" : "s"} to ${result.toNumbers.join(", ")}`);
-      },
-      onError: (error) => {
-        setLaunchSummary(null);
-        setLaunchError(error.message);
       },
     }),
+    {
+      success: (result) => {
+        const r = result as { started: number; toNumbers: string[] };
+        return `Dispatched ${r.started} call${r.started === 1 ? "" : "s"} to ${r.toNumbers.join(", ")}`;
+      },
+    },
   );
 
   const launchDisabled = createCall.isPending || !agentId || !phoneNumberId || toNumbers.length === 0;
@@ -56,9 +48,6 @@ export default function CallPlaygroundPage() {
         description="Place outbound SIP calls through an imported phone number."
         actions={<Link href="/playground" className={buttonVariants({ variant: "outline", size: "sm" })}>All playground tests</Link>}
       />
-
-      {launchSummary ? <Alert><IconCheck className="size-4" /><AlertDescription>{launchSummary}</AlertDescription></Alert> : null}
-      {launchError ? <Alert variant="destructive"><IconX className="size-4" /><AlertDescription>{launchError}</AlertDescription></Alert> : null}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="flex flex-col gap-6 rounded-xl border bg-card p-4">

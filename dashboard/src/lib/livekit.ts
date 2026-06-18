@@ -187,6 +187,22 @@ export async function findSipDispatchRulesByTrunkId(trunkId: string) {
 }
 
 /**
+ * Delete a LiveKit SIP trunk by ID.
+ */
+export async function deleteLiveKitSipTrunk(trunkId: string) {
+  const client = createSipClient();
+  return client.deleteSipTrunk(trunkId);
+}
+
+/**
+ * Delete a LiveKit SIP dispatch rule by ID.
+ */
+export async function deleteLiveKitSipDispatchRule(dispatchRuleId: string) {
+  const client = createSipClient();
+  return client.deleteSipDispatchRule(dispatchRuleId);
+}
+
+/**
  * Create a SIP dispatch rule so inbound calls route to the agent.
  *
  * - type "individual": LiveKit auto-launches an agent per call using roomPrefix.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconArrowLeft, IconCheck, IconPlayerPlay, IconX } from "@tabler/icons-react";
 import Link from "next/link";
 import { use, useState } from "react";
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useTRPC } from "@/trpc/client";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -74,17 +75,16 @@ export default function EvaluationDetailPage({ params }: { params: Promise<{ id:
     setInitialized(true);
   }
 
-  const updateConfig = useMutation(
+  const updateConfig = useMutationWithToast(
     (trpc.evaluations.updateConfig as { mutationOptions: (opts: unknown) => unknown }).mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: trpc.evaluations.getConfig.queryKey({ id }) });
-        toast.success("Config updated.");
       },
-      onError: (err: Error) => toast.error(err.message),
-    }) as Parameters<typeof useMutation>[0],
+    }),
+    { success: "Config updated." },
   );
 
-  const runEvaluation = useMutation(
+  const runEvaluation = useMutationWithToast(
     (trpc.evaluations.run as { mutationOptions: (opts: unknown) => unknown }).mutationOptions({
       onSuccess: (data: unknown) => {
         const d = data as { result: unknown; error: string | null; usage: unknown; durationMs: number };
@@ -95,8 +95,7 @@ export default function EvaluationDetailPage({ params }: { params: Promise<{ id:
           durationMs: d.durationMs,
         });
       },
-      onError: (err: Error) => toast.error(err.message),
-    }) as Parameters<typeof useMutation>[0],
+    }),
   );
 
   const handleSave = () => {

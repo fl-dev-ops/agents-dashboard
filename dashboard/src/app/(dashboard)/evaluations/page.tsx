@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   IconChartBar,
   IconDotsVertical,
@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
+import { DestructiveConfirmationDialog } from "@/components/dashboard/destructive-confirmation-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -39,17 +40,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useTRPC } from "@/trpc/client";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 import { formatDistanceToNow } from "date-fns";
 
 
@@ -69,12 +61,14 @@ export default function EvaluationsPage() {
   const rows = (configs.data ?? []) as EvalConfig[];
   const [deleteTarget, setDeleteTarget] = useState<EvalConfig | null>(null);
 
-  const deleteConfig = useMutation(
+  const deleteConfig = useMutationWithToast(
     trpc.evaluations.deleteConfig.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: trpc.evaluations.listConfigs.queryKey() });
+        setDeleteTarget(null);
       },
     }),
+    { success: "Evaluation deleted" },
   );
 
   return (
@@ -173,24 +167,20 @@ export default function EvaluationsPage() {
         </div>
       )}
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete evaluation config?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will permanently delete &quot;{deleteTarget?.name}&quot; and all its evaluation runs. This cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteTarget && deleteConfig.mutate({ id: deleteTarget.id })}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DestructiveConfirmationDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete evaluation config?"
+        description={
+          <>
+            This will permanently delete &quot;{deleteTarget?.name}&quot; and all its evaluation runs. This cannot be undone.
+          </>
+        }
+        actionLabel="Delete"
+        pendingLabel="Deleting"
+        isPending={deleteConfig.isPending}
+        onConfirm={() => deleteTarget && deleteConfig.mutate({ id: deleteTarget.id })}
+      />
     </div>
   );
 }

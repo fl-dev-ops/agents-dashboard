@@ -1,10 +1,13 @@
-import { PhoneNumberStatus } from "@/generated/prisma/client";
+import { PhoneNumberStatus, ProvisioningStatus } from "@/generated/prisma/client";
 import { z } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { listVobizPhoneNumbers } from "@/lib/vobiz";
+import { startTrackedWorkflow } from "@/lib/workflow-tracking";
 import { baseProcedure, createTRPCRouter } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
+import { provisionPhoneNumberWorkflow } from "@/workflows/provision-phone-number";
+import { deprovisionPhoneNumberWorkflow } from "@/workflows/deprovision-phone-number";
 
 const e164Schema = z.string().regex(/^\+\d{8,15}$/, "Use E.164 format, e.g. +918071387149");
 
@@ -41,7 +44,7 @@ export const phoneNumbersRouter = createTRPCRouter({
       z.object({
         id: z.string(),
         data: z.object({
-          label: z.string().optional(),
+          label: z.string().nullable().optional(),
           status: z.enum(PhoneNumberStatus).optional(),
           agentId: z.string().nullable().optional(),
         }),
@@ -156,6 +159,19 @@ export const phoneNumbersRouter = createTRPCRouter({
     return { synced: result.items.length, total: result.total };
   }),
 
+  byId: baseProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ input }) => {
+      const phone = await prisma.phoneNumber.findUnique({
+        where: { id: input.id },
+        include: { agent: true, connection: true, calls: { orderBy: { createdAt: "desc" }, take: 50 } },
+      });
+      if (!phone) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Phone number not found" });
+      }
+      return phone;
+    }),
+
   assign: baseProcedure
     .input(
       z.object({
@@ -166,6 +182,7 @@ export const phoneNumbersRouter = createTRPCRouter({
     .mutation(async ({ input }) => {
       const phoneNumber = await prisma.phoneNumber.findUnique({
         where: { id: input.phoneNumberId },
+        include: { connection: true },
       });
       if (!phoneNumber) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Phone number not found" });
@@ -176,6 +193,15 @@ export const phoneNumbersRouter = createTRPCRouter({
           message: "Phone number is not synced from Vobiz — sync first",
         });
       }
+      if (
+        phoneNumber.connection?.status === ProvisioningStatus.PROVISIONING ||
+        phoneNumber.connection?.status === ProvisioningStatus.DEPROVISIONING
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Phone number routing is already changing — wait for it to complete",
+        });
+      }
 
       const agent = await prisma.agent.findUnique({
         where: { id: input.agentId },
@@ -184,10 +210,65 @@ export const phoneNumbersRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Agent not found" });
       }
 
-      const { connectPhoneNumberToAgent } = await import("@/lib/livekit");
-      return connectPhoneNumberToAgent({
-        vobizNumber: { id: phoneNumber.id, e164: phoneNumber.e164 },
-        agent: { id: agent.id, agentId: agent.agentId },
+      return startTrackedWorkflow({
+        workflow: provisionPhoneNumberWorkflow,
+        input: { phoneNumberId: phoneNumber.id, agentId: agent.id },
+        workflowName: "provision-phone-number",
+        operation: "phone_number:activate",
+        title: "Activating phone number",
+        message: `Provisioning ${phoneNumber.e164}`,
+        resourceType: "phone_number",
+        resourceId: phoneNumber.id,
+        resourceLabel: phoneNumber.e164,
+        idempotencyKey: `phone_number:${phoneNumber.id}:activate`,
+      });
+    }),
+
+  disconnect: baseProcedure
+    .input(z.object({ phoneNumberId: z.string() }))
+    .mutation(async ({ input }) => {
+      const phoneNumber = await prisma.phoneNumber.findUnique({
+        where: { id: input.phoneNumberId },
+        include: { connection: true },
+      });
+      if (!phoneNumber) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Phone number not found" });
+      }
+      if (!phoneNumber.connection) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Phone number has no connection record",
+        });
+      }
+      if (phoneNumber.connection.status === ProvisioningStatus.DEPROVISIONING) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Phone number is already being disconnected",
+        });
+      }
+      if (phoneNumber.connection.status !== ProvisioningStatus.ACTIVE) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Phone number is not currently provisioned",
+        });
+      }
+
+      await prisma.phoneNumberConnection.update({
+        where: { id: phoneNumber.connection.id },
+        data: { status: ProvisioningStatus.DEPROVISIONING, lastError: null },
+      });
+
+      return startTrackedWorkflow({
+        workflow: deprovisionPhoneNumberWorkflow,
+        input: { phoneNumberId: phoneNumber.id },
+        workflowName: "deprovision-phone-number",
+        operation: "phone_number:disconnect",
+        title: "Disconnecting phone number",
+        message: `Removing SIP configuration for ${phoneNumber.e164}`,
+        resourceType: "phone_number",
+        resourceId: phoneNumber.id,
+        resourceLabel: phoneNumber.e164,
+        idempotencyKey: `phone_number:${phoneNumber.id}:disconnect`,
       });
     }),
 });

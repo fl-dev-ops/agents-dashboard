@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { IconDeviceFloppy, IconLoader } from "@tabler/icons-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,6 +19,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useTRPC } from "@/trpc/client";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 import { type AgentForm, sanitizeAgentId } from "@/lib/dashboard-types";
 import { emptyAgentForm } from "@/lib/dashboard-types";
 
@@ -49,12 +49,14 @@ export default function NewAgentPage() {
   const [form, setForm] = useState<AgentForm>(emptyAgentForm);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const create = useMutation(
+  const create = useMutationWithToast(
+    // @ts-ignore — tRPC type depth exceeds TS limit with Zod refine schemas
     trpc.agents.create.mutationOptions({
       onSuccess: (created) => {
         router.push(`/agents/${created.id}`);
       },
     }),
+    { error: "Failed to create agent" },
   );
 
   const errors = {

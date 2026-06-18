@@ -1,43 +1,30 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { IconBrowser, IconCheck, IconLoader, IconX } from "@tabler/icons-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { IconBrowser, IconLoader } from "@tabler/icons-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AgentSelect } from "@/components/dashboard/agent-select";
 import { useTRPC } from "@/trpc/client";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 
 export default function WebPlaygroundPage() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const [agentId, setAgentId] = useState("");
   const [userId, setUserId] = useState("");
-  const [launchSummary, setLaunchSummary] = useState<string | null>(null);
-  const [launchError, setLaunchError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!launchSummary) return;
-    const timer = setTimeout(() => setLaunchSummary(null), 5000);
-    return () => clearTimeout(timer);
-  }, [launchSummary]);
-
-  const createSession = useMutation(
+  const createSession = useMutationWithToast(
     trpc.calls.createPlaygroundCall.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.calls.list.queryFilter());
-        setLaunchError(null);
-        setLaunchSummary("Session started");
-      },
-      onError: (error) => {
-        setLaunchSummary(null);
-        setLaunchError(error.message);
       },
     }),
+    { success: "Session started" },
   );
 
   return (
@@ -48,9 +35,6 @@ export default function WebPlaygroundPage() {
         description="Dispatch an agent into a LiveKit room for browser and web-client validation."
         actions={<Link href="/playground" className={buttonVariants({ variant: "outline", size: "sm" })}>All playground tests</Link>}
       />
-
-      {launchSummary ? <Alert><IconCheck className="size-4" /><AlertDescription>{launchSummary}</AlertDescription></Alert> : null}
-      {launchError ? <Alert variant="destructive"><IconX className="size-4" /><AlertDescription>{launchError}</AlertDescription></Alert> : null}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="flex flex-col gap-6 rounded-xl border bg-card p-4">

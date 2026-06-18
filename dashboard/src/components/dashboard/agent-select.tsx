@@ -9,10 +9,11 @@ import { useTRPC } from "@/trpc/client";
 interface AgentSelectProps {
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
   className?: string;
 }
 
-export function AgentSelect({ value, onChange, className }: AgentSelectProps) {
+export function AgentSelect({ value, onChange, disabled, className }: AgentSelectProps) {
   const trpc = useTRPC();
   const agents = useQuery(trpc.agents.list.queryOptions());
   const rows = (agents.data ?? []) as DashboardAgent[];
@@ -25,6 +26,7 @@ export function AgentSelect({ value, onChange, className }: AgentSelectProps) {
       placeholder="Select agent"
       searchPlaceholder="Search agents…"
       loading={agents.isLoading}
+      disabled={disabled}
       className={className}
     />
   );

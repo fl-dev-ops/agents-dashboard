@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { IconArrowLeft, IconDeviceFloppy } from "@tabler/icons-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,7 +19,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { useTRPC } from "@/trpc/client";
-import { toast } from "sonner";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 
 const DEFAULT_SCHEMA = JSON.stringify(
   {
@@ -56,15 +55,14 @@ export default function NewEvaluationPage() {
   const [model, setModel] = useState("openai/gpt-4.1-mini");
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const create = useMutation(
+  const create = useMutationWithToast(
     (trpc.evaluations.createConfig as { mutationOptions: (opts: unknown) => unknown }).mutationOptions({
       onSuccess: (data: unknown) => {
         const d = data as { id: string };
-        toast.success("Evaluation config created.");
         router.push(`/evaluations/${d.id}`);
       },
-      onError: (err: Error) => toast.error(err.message),
-    }) as Parameters<typeof useMutation>[0],
+    }),
+    { success: "Evaluation config created." },
   );
 
   const errors = {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconArrowRight, IconCheck, IconDownload, IconLoader, IconPhone, IconX } from "@tabler/icons-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { DashboardPhoneNumber } from "@/lib/dashboard-types";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 import { useTRPC } from "@/trpc/client";
 
 type VobizImportNumber = {
@@ -103,7 +104,7 @@ export default function PhoneNumbersPage() {
               {rows.map((number) => (
                 <TableRow key={number.id}>
                   <TableCell>
-                    <Link href={`/calls?phoneNumber=${encodeURIComponent(number.e164)}`} className="font-mono text-[13px] font-medium hover:underline">{number.e164}</Link>
+                    <Link href={`/phone-numbers/${number.id}`} className="font-mono text-[13px] font-medium hover:underline">{number.e164}</Link>
                   </TableCell>
                   <TableCell>{number.label ?? <span className="text-muted-foreground">No label</span>}</TableCell>
                   <TableCell>
@@ -125,12 +126,12 @@ export default function PhoneNumbersPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    {number.agentId ? (
-                      <Link href={`/agents/${number.agentId}?tab=phone-numbers`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
+                    <div className="flex items-center justify-end gap-2">
+                      <Link href={`/phone-numbers/${number.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
                         <IconArrowRight data-icon="inline-start" />
                         Manage
                       </Link>
-                    ) : <span className="text-xs text-muted-foreground">Assign from agent</span>}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -148,12 +149,13 @@ function ImportNumbersDialog({ onImported }: { onImported: () => Promise<unknown
   const numbers = (available.data?.items ?? []) as VobizImportNumber[];
   const [labels, setLabels] = useState<Record<string, string>>({});
 
-  const importNumber = useMutation(
+  const importNumber = useMutationWithToast(
     trpc.phoneNumbers.importFromVobiz.mutationOptions({
       onSuccess: async () => {
         await onImported();
       },
     }),
+    { success: "Phone number imported" },
   );
 
   if (available.isLoading) {

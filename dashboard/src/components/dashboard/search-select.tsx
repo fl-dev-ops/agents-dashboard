@@ -18,6 +18,7 @@ interface SearchSelectProps {
   placeholder?: string;
   searchPlaceholder?: string;
   loading?: boolean;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -28,6 +29,7 @@ export function SearchSelect({
   placeholder = "Select…",
   searchPlaceholder = "Search…",
   loading = false,
+  disabled = false,
   className,
 }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
@@ -69,7 +71,7 @@ export function SearchSelect({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        disabled={loading}
+        disabled={loading || disabled}
         className={cn(
           "flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 text-sm transition-colors hover:bg-accent/50",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",

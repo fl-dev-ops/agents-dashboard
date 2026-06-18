@@ -281,6 +281,13 @@ export async function updateVobizTrunk(
   return JSON.parse(text) as VobizTrunkResponse;
 }
 
+export async function deleteVobizTrunk(trunkId: string) {
+  const { authId } = requireVobizEnv();
+  return vobizRequest<null>(`/Account/${authId}/trunks/${trunkId}`, {
+    method: "DELETE",
+  });
+}
+
 /** Set the inbound destination on an existing Vobiz trunk. */
 export async function setVobizTrunkInboundDestination(
   trunkId: string,

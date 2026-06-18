@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   IconDotsVertical,
   IconPencil,
@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/dashboard/page-header";
+import { DestructiveConfirmationDialog } from "@/components/dashboard/destructive-confirmation-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -28,17 +29,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useTRPC } from "@/trpc/client";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 import type { DashboardAgent } from "@/lib/dashboard-types";
 import { formatDistanceToNow } from "date-fns";
 
@@ -51,13 +43,14 @@ export default function AgentsPage() {
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<DashboardAgent | null>(null);
 
-  const deleteAgent = useMutation(
+  const deleteAgent = useMutationWithToast(
     trpc.agents.delete.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.agents.list.queryFilter());
         setDeleteTarget(null);
       },
     }),
+    { success: "Agent deleted" },
   );
 
   const filtered = useMemo(() => {
@@ -227,28 +220,22 @@ export default function AgentsPage() {
         )}
       </section>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete agent</AlertDialogTitle>
-            <AlertDialogDescription>
-              Delete &ldquo;{deleteTarget?.name}&rdquo; permanently. Call history remains, but this agent profile cannot be restored.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={deleteAgent.isPending}
-              onClick={() => {
-                if (deleteTarget) deleteAgent.mutate({ id: deleteTarget.id });
-              }}
-            >
-              {deleteAgent.isPending ? "Deleting" : "Delete agent"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DestructiveConfirmationDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Delete agent"
+        description={
+          <>
+            Delete &ldquo;{deleteTarget?.name}&rdquo; permanently. Call history remains, but this agent profile cannot be restored.
+          </>
+        }
+        actionLabel="Delete agent"
+        pendingLabel="Deleting"
+        isPending={deleteAgent.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteAgent.mutate({ id: deleteTarget.id });
+        }}
+      />
     </div>
   );
 }

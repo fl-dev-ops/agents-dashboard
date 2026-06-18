@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   IconArrowLeft,
   IconDeviceFloppy,
@@ -26,12 +26,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useMutationWithToast } from "@/lib/use-mutation-with-toast";
 import { countTokens } from "@/lib/tokenizer";
 import { sanitizeAgentId, EGRESS_TYPES, MAX_EGRESS_COUNT, FRAME_INTERVAL_PRESETS } from "@/lib/dashboard-types";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { DestructiveConfirmationDialog } from "@/components/dashboard/destructive-confirmation-dialog";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -40,16 +42,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -129,10 +121,11 @@ function AgentDetailContent({ params }: { params: Promise<{ id: string }> }) {
       queryClient.invalidateQueries(trpc.phoneNumbers.list.queryFilter()),
     ]);
 
-  const deleteAgent = useMutation(
+  const deleteAgent = useMutationWithToast(
     trpc.agents.delete.mutationOptions({
       onSuccess: () => router.push("/agents"),
     }),
+    { success: "Agent deleted" },
   );
 
   const setSection = (section: SectionValue) => {
@@ -163,7 +156,8 @@ function AgentDetailContent({ params }: { params: Promise<{ id: string }> }) {
     );
   }
 
-  const currentAgent = agent.data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentAgent = agent.data as any;
   const assignedNumbers = (currentAgent.phoneNumbers ?? []) as DashboardPhoneNumber[];
   const allNumbers = (phoneNumbers.data ?? []) as DashboardPhoneNumber[];
 
@@ -226,22 +220,20 @@ function AgentDetailContent({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </div>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete agent</AlertDialogTitle>
-            <AlertDialogDescription>
-              Delete &ldquo;{currentAgent.name}&rdquo; permanently. Call history remains, but this agent profile cannot be restored.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={deleteAgent.isPending} onClick={() => deleteAgent.mutate({ id })}>
-              {deleteAgent.isPending ? "Deleting" : "Delete agent"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DestructiveConfirmationDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Delete agent"
+        description={
+          <>
+            Delete &ldquo;{currentAgent.name}&rdquo; permanently. Call history remains, but this agent profile cannot be restored.
+          </>
+        }
+        actionLabel="Delete agent"
+        pendingLabel="Deleting"
+        isPending={deleteAgent.isPending}
+        onConfirm={() => deleteAgent.mutate({ id })}
+      />
     </div>
   );
 }
@@ -327,7 +319,7 @@ function PromptSection({ agent, agentId }: { agent: Record<string, unknown>; age
     form.voiceDictId !== savedForm.voiceDictId;
   const overLimit = form.prompt.length > PROMPT_MAX_CHARS;
   const tokenCount = useMemo(() => countTokens(form.prompt), [form.prompt]);
-  const update = useMutation(
+  const update = useMutationWithToast(
     trpc.agents.update.mutationOptions({
       onSuccess: () => {
         setSavedForm(form);
@@ -335,6 +327,7 @@ function PromptSection({ agent, agentId }: { agent: Record<string, unknown>; age
         queryClient.invalidateQueries(trpc.agents.list.queryFilter());
       },
     }),
+    { success: "Agent settings saved" },
   );
   const saveForm = useCallback(
     () => update.mutate({ id: agentId, data: form }),
@@ -446,7 +439,7 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
   const [description, setDescription] = useState((agent.description as string) ?? "");
   const [hasChanges, setHasChanges] = useState(false);
 
-  const update = useMutation(
+  const update = useMutationWithToast(
     trpc.agents.update.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
@@ -454,6 +447,7 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
         setHasChanges(false);
       },
     }),
+    { success: "Description saved" },
   );
 
   return (
@@ -511,7 +505,7 @@ function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; 
   const [egressConfigs, setEgressConfigs] = useState<{ type: (typeof EGRESS_TYPES)[number]; frameIntervalSec?: number }[]>(initialConfigs);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const update = useMutation(
+  const update = useMutationWithToast(
     trpc.agents.update.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
@@ -519,6 +513,7 @@ function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; 
         setHasChanges(false);
       },
     }),
+    { success: "Recording settings saved" },
   );
 
   const availableTypes = useMemo(() => {
@@ -640,7 +635,7 @@ function VoiceSection({ agent, agentId }: { agent: Record<string, unknown>; agen
   const [voiceDictId, setVoiceDictId] = useState((agent.voiceDictId as string) ?? "");
   const [hasChanges, setHasChanges] = useState(false);
 
-  const update = useMutation(
+  const update = useMutationWithToast(
     trpc.agents.update.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
@@ -648,6 +643,7 @@ function VoiceSection({ agent, agentId }: { agent: Record<string, unknown>; agen
         setHasChanges(false);
       },
     }),
+    { success: "Voice settings saved" },
   );
 
   return (
@@ -679,15 +675,26 @@ function ToolsSection({ agent, agentId }: { agent: Record<string, unknown>; agen
   const knowledgeBaseEnabled = Boolean(agent.knowledgeBaseCollection);
 
   const invalidateAgent = () => queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
-  const endCallTool = useMutation(trpc.agents.update.mutationOptions({ onSuccess: invalidateAgent }));
-  const memoryTool = useMutation(trpc.agents.update.mutationOptions({ onSuccess: invalidateAgent }));
-  const knowledgeTool = useMutation(
+  const endCallTool = useMutationWithToast(
+    trpc.agents.update.mutationOptions({
+      onSuccess: invalidateAgent,
+    }),
+    { success: (data) => `End-call tool ${(data as Record<string, unknown>).endCallEnabled ? "enabled" : "disabled"}` },
+  );
+  const memoryTool = useMutationWithToast(
+    trpc.agents.update.mutationOptions({
+      onSuccess: invalidateAgent,
+    }),
+    { success: (data) => `Memory ${(data as Record<string, unknown>).memoryEnabled ? "enabled" : "disabled"}` },
+  );
+  const knowledgeTool = useMutationWithToast(
     trpc.agents.update.mutationOptions({
       onSuccess: () => {
         invalidateAgent();
         setKnowledgeHasChanges(false);
       },
     }),
+    { success: "Knowledge base saved" },
   );
 
   return (
@@ -794,21 +801,24 @@ function PhoneNumbersSection({
   const trpc = useTRPC();
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedNumberId, setSelectedNumberId] = useState("");
-  const [assignError, setAssignError] = useState<string | null>(null);
 
-  const assignNumber = useMutation(
+  const assignNumber = useMutationWithToast(
     trpc.phoneNumbers.assign.mutationOptions({
       onSuccess: () => {
         setSelectedNumberId("");
-        setAssignError(null);
         setAssignOpen(false);
         onInvalidate();
       },
-      onError: (error) => setAssignError(error.message),
     }),
+    { success: "Phone number assigned" },
   );
 
-  const unassignNumber = useMutation(trpc.phoneNumbers.update.mutationOptions({ onSuccess: onInvalidate }));
+  const unassignNumber = useMutationWithToast(
+    trpc.phoneNumbers.update.mutationOptions({
+      onSuccess: onInvalidate,
+    }),
+    { success: "Phone number unassigned" },
+  );
   const availableNumbers = allNumbers.filter((number) => !number.agentId || number.agentId === agentId);
   const unassignedNumbers = availableNumbers.filter((number) => !number.agentId);
 
@@ -835,10 +845,7 @@ function PhoneNumbersSection({
               <div className="space-y-3">
                 <Select
                   value={selectedNumberId}
-                  onValueChange={(value) => {
-                    setSelectedNumberId(value ?? "");
-                    setAssignError(null);
-                  }}
+                  onValueChange={(value) => setSelectedNumberId(value ?? "")}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose a number" />
@@ -853,9 +860,8 @@ function PhoneNumbersSection({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-                {assignError ? <p className="text-sm text-destructive">{assignError}</p> : null}
                 <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => { setAssignOpen(false); setAssignError(null); }}>
+                  <Button variant="outline" onClick={() => setAssignOpen(false)}>
                     Cancel
                   </Button>
                   <Button

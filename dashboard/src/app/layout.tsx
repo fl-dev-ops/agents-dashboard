@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
+import { WorkflowToastProvider } from "@/components/dashboard/workflow-toast-provider";
 import { TRPCReactProvider } from "@/trpc/client";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +41,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <TRPCReactProvider>
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            {children}
+            <Toaster />
+            <WorkflowToastProvider />
+          </TooltipProvider>
         </TRPCReactProvider>
       </body>
     </html>
