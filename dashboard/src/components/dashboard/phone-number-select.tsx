@@ -21,7 +21,7 @@ export function PhoneNumberSelect({ value, onChange, className }: PhoneNumberSel
     <SearchSelect
       value={value}
       onChange={onChange}
-      items={rows.map((n) => ({ value: n.id, label: n.e164, sublabel: n.label || undefined }))}
+      items={rows.map((n) => ({ value: n.id, label: n.e164 }))}
       placeholder="Select phone number"
       searchPlaceholder="Search numbers…"
       loading={phoneNumbers.isLoading}
