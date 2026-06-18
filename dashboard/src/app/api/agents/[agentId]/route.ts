@@ -35,7 +35,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     kb_shape: agent.knowledgeBaseShape,
     memory_enabled: agent.memoryEnabled,
     model: agent.model,
-    recording_type: agent.recordingType,
+    egress_configs: agent.egressConfigs,
     webhook_url: getCallWebhookUrl() ?? "",
   });
 }

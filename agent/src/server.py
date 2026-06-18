@@ -29,6 +29,7 @@ from prompt import build_prompt_context, load_prompt, render_prompt
 from ptt import register_push_to_talk_rpcs
 from recording.config import RecordingConfig
 from recording.runtime import (
+    EgressEntry,
     FinalizeRecordingRequest,
     RecordingStartState,
     finalize_recording,
@@ -99,12 +100,7 @@ class SessionState:
     webhook_url: str | None
     recording_config: RecordingConfig | None = None
     recording_session_id: str | None = None
-    egress_id: str | None = None
-    audio_url: str | None = None
-    audio_s3_key: str | None = None
-    video_egress_id: str | None = None
-    video_url: str | None = None
-    video_s3_key: str | None = None
+    egress_entries: tuple[EgressEntry, ...] = ()
     memory_start_snapshot: object = None
 
 
@@ -220,28 +216,23 @@ async def on_session_end(ctx: agents.JobContext) -> None:
 
     recording_result: dict[str, object] | None = None
 
-    if state.recording_config is not None:
+    if state.recording_config is not None and state.egress_entries:
         try:
             recording_result = await finalize_recording(
                 FinalizeRecordingRequest(
                     config=state.recording_config,
                     lk_api=ctx.api,
-                    egress_id=state.egress_id,
                     agent_type=state.agent_type,
                     agent_name=state.agent_type,
                     room_name=state.room_name,
-                    audio_url=state.audio_url or "",
-                    audio_s3_key=state.audio_s3_key or "",
                     report_dict=report_dict,
+                    egress_entries=state.egress_entries,
                     session_id=state.recording_session_id,
                     resolved_user_id=state.resolved_user_id,
                     participant_identity=state.participant_identity,
                     phone_number=state.phone_number,
                     webhook_url=state.webhook_url,
                     send_webhook=False,
-                    video_egress_id=state.video_egress_id,
-                    video_url=state.video_url,
-                    video_s3_key=state.video_s3_key,
                 )
             )
         except Exception as e:
@@ -268,16 +259,20 @@ async def on_session_end(ctx: agents.JobContext) -> None:
                 except Exception:
                     pass
 
+            # Collect URLs from egress entries or finalize result
+            audio_entry = next((e for e in state.egress_entries if e.type == "audio"), None)
+            video_entry = next((e for e in state.egress_entries if e.type == "video"), None)
+
             payload = {
                 "agent_id": state.profile_id,
                 "agent_type": state.agent_type,
                 "room_name": state.room_name,
                 "audio_url": recording_result.get("audio_url")
                 if recording_result
-                else state.audio_url,
+                else (audio_entry.url if audio_entry else None),
                 "video_url": recording_result.get("video_url")
                 if recording_result
-                else state.video_url,
+                else (video_entry.url if video_entry else None),
                 "transcript_url": recording_result.get("transcript_url")
                 if recording_result
                 else None,
@@ -315,6 +310,17 @@ async def on_session_end(ctx: agents.JobContext) -> None:
     )[:10]
     for stat in top_stats:
         logger.info("memory_diff room=%s %s", ctx.room.name, stat)
+
+    # Explicitly delete the room to prevent SIP room leaks.
+    # If the agent crashes before on_session_end fires, the watchdog handles it.
+    # But if on_session_end fires (graceful shutdown), we must clean up here.
+    try:
+        await ctx.api.room.delete_room(ctx.api.room.DeleteRoomRequest(
+            room=ctx.room.name,
+        ))
+        logger.info("room_deleted room=%s", ctx.room.name)
+    except Exception as e:
+        logger.warning("Failed to delete room %s: %s", ctx.room.name, e)
 
     logger.info(
         "session_end_memory room=%s rss_mb=%.1f",
@@ -391,7 +397,12 @@ async def entrypoint(ctx: agents.JobContext) -> None:
         logger.warning("Langfuse setup failed: %s", e)
 
     try:
-        prompt_template = load_prompt(profile.prompt_url)
+        from profile_api import is_api_mode
+        if is_api_mode():
+            # In API mode, prompt_url contains the full prompt text from the DB
+            prompt_template = profile.prompt_url
+        else:
+            prompt_template = load_prompt(profile.prompt_url)
     except Exception as e:
         logger.error("Failed to load prompt for agent_id=%s: %s", profile.id, e)
         return
@@ -402,7 +413,9 @@ async def entrypoint(ctx: agents.JobContext) -> None:
 
     rec_cfg = get_recording_config(userdata)
     recording_task: asyncio.Task[RecordingStartState] | None = None
-    if rec_cfg.enabled:
+    # Egress is fully agent-config driven. Start egress for each configured type.
+    egress_configs = [c for c in profile.egress_configs if isinstance(c, dict) and c.get("type")]
+    if egress_configs and rec_cfg.available:
         recording_task = asyncio.create_task(
             start_recording_for_session(
                 config=rec_cfg,
@@ -410,6 +423,7 @@ async def entrypoint(ctx: agents.JobContext) -> None:
                 agent_type=profile.agent_type,
                 agent_name=profile.agent_type,
                 room_name=ctx.room.name,
+                egress_configs=egress_configs,
                 resolved_user_id=resolved_user_id,
                 participant_identity=participant_identity,
                 phone_number=phone_number,
@@ -447,6 +461,7 @@ async def entrypoint(ctx: agents.JobContext) -> None:
     )
 
     session = build_agent_session(
+        openrouter_model=profile.model,
         tts_speaker=profile.voice_speaker,
         tts_dict_id=profile.voice_dict_id,
         mode=mode,
@@ -481,14 +496,9 @@ async def entrypoint(ctx: agents.JobContext) -> None:
         participant_identity=participant_identity,
         phone_number=phone_number,
         webhook_url=webhook_url,
-        recording_config=rec_cfg if rec_cfg.enabled else None,
+        recording_config=rec_cfg if egress_configs and rec_cfg.available else None,
         recording_session_id=recording_start.recording_session_id,
-        egress_id=recording_start.egress_id,
-        audio_url=recording_start.audio_url,
-        audio_s3_key=recording_start.audio_s3_key,
-        video_egress_id=recording_start.video_egress_id,
-        video_url=recording_start.video_url,
-        video_s3_key=recording_start.video_s3_key,
+        egress_entries=recording_start.egresses,
         memory_start_snapshot=memory_start_snapshot,
     )
 

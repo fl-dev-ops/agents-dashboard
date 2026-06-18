@@ -50,10 +50,20 @@ def _profile_from_payload(payload: Mapping[str, Any]) -> AgentProfile:
         raise ProfileError(
             f"Dashboard profile field 'kb_shape' must be 'simple' or 'diagnostic', got {kb_shape!r}"
         )
+    egress_configs_raw = payload.get("egress_configs")
+    egress_configs: list[dict[str, Any]] = []
+    if isinstance(egress_configs_raw, list):
+        for entry in egress_configs_raw:
+            if isinstance(entry, Mapping) and "type" in entry:
+                config: dict[str, Any] = {"type": str(entry["type"])}
+                if entry["type"] == "frames" and "frameIntervalSec" in entry:
+                    config["frameIntervalSec"] = int(entry["frameIntervalSec"])
+                egress_configs.append(config)
+
     return AgentProfile(
         id=agent_id,
         agent_type=agent_id,
-        prompt=_string_field(payload, "prompt"),
+        prompt_url=_string_field(payload, "prompt"),
         initial_reply=_string_field(payload, "initial_reply"),
         voice_speaker=_string_field(payload, "voice_speaker"),
         voice_dict_id=_optional_string_field(payload, "voice_dict_id"),
@@ -62,7 +72,7 @@ def _profile_from_payload(payload: Mapping[str, Any]) -> AgentProfile:
         kb_shape=kb_shape,
         memory_enabled=_bool_field(payload, "memory_enabled"),
         model=_string_field(payload, "model"),
-        recording_type=_optional_string_field(payload, "recording_type") or "off",
+        egress_configs=egress_configs,
         webhook_url=_optional_string_field(payload, "webhook_url") or "",
     )
 

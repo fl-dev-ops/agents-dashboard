@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,9 @@ class AgentProfile:
     kb_collection: str | None
     kb_shape: str
     memory_enabled: bool
+    model: str = "openai/gpt-5.1"
+    egress_configs: list[dict[str, Any]] = field(default_factory=list)
+    webhook_url: str = ""
 
 
 def _required_str(value: Any, field: str) -> str:

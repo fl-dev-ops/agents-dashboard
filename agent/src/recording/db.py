@@ -83,6 +83,10 @@ async def init_pool(database_url: str) -> asyncpg.Pool:
             ADD COLUMN IF NOT EXISTS video_s3_key TEXT;
             ALTER TABLE agent_sessions
             ADD COLUMN IF NOT EXISTS video_egress_id TEXT;
+            ALTER TABLE agent_sessions
+            ADD COLUMN IF NOT EXISTS frames_url TEXT;
+            ALTER TABLE agent_sessions
+            ADD COLUMN IF NOT EXISTS frames_s3_key TEXT;
             """
         )
     logger.info("Recording DB pool initialized and schema bootstrapped")
@@ -114,6 +118,8 @@ async def insert_session(
     video_url: str | None = None,
     video_s3_key: str | None = None,
     video_egress_id: str | None = None,
+    frames_url: str | None = None,
+    frames_s3_key: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> str:
     if _pool is None:
@@ -125,8 +131,9 @@ async def insert_session(
             agent_type, agent_name, livekit_room_name, livekit_room_sid,
             egress_id, resolved_user_id, participant_identity, phone_number,
             started_at, status, audio_url, audio_s3_key,
-            video_url, video_s3_key, video_egress_id, metadata
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'RECORDING',$10,$11,$12,$13,$14,$15::jsonb)
+            video_url, video_s3_key, video_egress_id,
+            frames_url, frames_s3_key, metadata
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'RECORDING',$10,$11,$12,$13,$14,$15,$16,$17::jsonb)
         ON CONFLICT (agent_type, livekit_room_name) DO UPDATE SET
             egress_id = EXCLUDED.egress_id,
             resolved_user_id = EXCLUDED.resolved_user_id,
@@ -139,6 +146,8 @@ async def insert_session(
             video_url = EXCLUDED.video_url,
             video_s3_key = EXCLUDED.video_s3_key,
             video_egress_id = EXCLUDED.video_egress_id,
+            frames_url = EXCLUDED.frames_url,
+            frames_s3_key = EXCLUDED.frames_s3_key,
             metadata = EXCLUDED.metadata,
             updated_at = now()
         RETURNING id
@@ -157,6 +166,8 @@ async def insert_session(
         video_url,
         video_s3_key,
         video_egress_id,
+        frames_url,
+        frames_s3_key,
         json.dumps(metadata or {}),
     )
     return row["id"]
@@ -184,6 +195,8 @@ async def update_session_completed(
     verbose_s3_key: str | None = None,
     video_url: str | None = None,
     video_s3_key: str | None = None,
+    frames_url: str | None = None,
+    frames_s3_key: str | None = None,
     egress_status: str | None = None,
     egress_error: str | None = None,
     status: str = "COMPLETED",
@@ -205,11 +218,13 @@ async def update_session_completed(
             verbose_s3_key = COALESCE($9, verbose_s3_key),
             video_url = COALESCE($10, video_url),
             video_s3_key = COALESCE($11, video_s3_key),
-            egress_status = COALESCE($12, egress_status),
-            egress_error = COALESCE($13, egress_error),
-            status = $14,
-            metadata = CASE WHEN $15::jsonb IS NOT NULL
-                THEN metadata || $15::jsonb ELSE metadata END,
+            frames_url = COALESCE($12, frames_url),
+            frames_s3_key = COALESCE($13, frames_s3_key),
+            egress_status = COALESCE($14, egress_status),
+            egress_error = COALESCE($15, egress_error),
+            status = $16,
+            metadata = CASE WHEN $17::jsonb IS NOT NULL
+                THEN metadata || $17::jsonb ELSE metadata END,
             updated_at = now()
         WHERE id = $1
         """,
@@ -224,6 +239,8 @@ async def update_session_completed(
         verbose_s3_key,
         video_url,
         video_s3_key,
+        frames_url,
+        frames_s3_key,
         egress_status,
         egress_error,
         status,

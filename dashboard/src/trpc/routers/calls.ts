@@ -114,6 +114,52 @@ function buildSessionSummary(
 }
 
 export const callsRouter = createTRPCRouter({
+  /**
+   * Mark ACTIVE calls that have been open for longer than the threshold
+   * as FAILED. This catches rooms that leaked due to agent crashes or
+   * missing room_finished webhooks.
+   *
+   * Default threshold: 2 hours. Calls older than this with ACTIVE status
+   * and no terminal webhook events are assumed stale.
+   */
+  cleanupStaleCalls: baseProcedure
+    .input(z.object({ thresholdMs: z.number().int().default(2 * 60 * 60 * 1000) }).optional())
+    .mutation(async ({ input }) => {
+      const threshold = input?.thresholdMs ?? 2 * 60 * 60 * 1000;
+      const cutoff = new Date(Date.now() - threshold);
+
+      const staleCalls = await prisma.call.findMany({
+        where: {
+          status: { in: [CallStatus.ACTIVE, CallStatus.DIALING, CallStatus.RINGING] },
+          createdAt: { lt: cutoff },
+        },
+        select: { id: true, roomName: true, status: true, createdAt: true },
+      });
+
+      if (staleCalls.length === 0) {
+        return { cleaned: 0, calls: [] };
+      }
+
+      const ids = staleCalls.map((c) => c.id);
+      await prisma.call.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          status: CallStatus.FAILED,
+          errorMessage: "Stale session — no room_finished webhook received",
+          endedAt: new Date(),
+        },
+      });
+
+      return {
+        cleaned: staleCalls.length,
+        calls: staleCalls.map((c) => ({
+          id: c.id,
+          roomName: c.roomName,
+          previousStatus: c.status,
+          createdAt: c.createdAt.toISOString(),
+        })),
+      };
+    }),
   list: baseProcedure
     .input(z.object({ toNumber: e164Schema.optional(), phoneNumber: e164Schema.optional(), days: z.number().int().min(1).max(30).optional() }).optional())
     .query(({ input }) => {

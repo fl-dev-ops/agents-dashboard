@@ -22,7 +22,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { countTokens } from "@/lib/tokenizer";
-import { sanitizeAgentId } from "@/lib/dashboard-types";
+import { sanitizeAgentId, EGRESS_TYPES, MAX_EGRESS_COUNT, FRAME_INTERVAL_PRESETS } from "@/lib/dashboard-types";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -64,7 +64,7 @@ import {
 import { useTRPC } from "@/trpc/client";
 import type { DashboardPhoneNumber } from "@/lib/dashboard-types";
 
-const SECTIONS = ["prompt", "voice", "tools", "phone-numbers", "settings"] as const;
+const SECTIONS = ["prompt", "voice", "recording", "tools", "phone-numbers", "settings"] as const;
 type SectionValue = (typeof SECTIONS)[number];
 
 type PromptForm = {
@@ -207,6 +207,7 @@ function AgentDetailContent({ params }: { params: Promise<{ id: string }> }) {
             <SettingsSection agent={currentAgent} agentId={id} onDelete={() => setDeleteOpen(true)} />
           ) : null}
           {activeSection === "voice" ? <VoiceSection agent={currentAgent} agentId={id} /> : null}
+          {activeSection === "recording" ? <RecordingSection agent={currentAgent} agentId={id} /> : null}
           {activeSection === "tools" ? <ToolsSection agent={currentAgent} agentId={id} /> : null}
           {activeSection === "phone-numbers" ? (
             <PhoneNumbersSection
@@ -250,6 +251,7 @@ function AgentTabs({
   const items: { value: SectionValue; label: string }[] = [
     { value: "prompt", label: "Prompt" },
     { value: "voice", label: "Voice" },
+    { value: "recording", label: "Recording" },
     { value: "tools", label: "Tools" },
     { value: "phone-numbers", label: "Phone numbers" },
     { value: "settings", label: "Settings" },
@@ -438,7 +440,6 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
   const queryClient = useQueryClient();
   const [description, setDescription] = useState((agent.description as string) ?? "");
   const [hasChanges, setHasChanges] = useState(false);
-  const [recordingType, setRecordingType] = useState((agent.recordingType as string) ?? "off");
 
   const update = useMutation(
     trpc.agents.update.mutationOptions({
@@ -446,15 +447,6 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
         queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
         queryClient.invalidateQueries(trpc.agents.list.queryFilter());
         setHasChanges(false);
-      },
-    }),
-  );
-
-  const recordingMutation = useMutation(
-    trpc.agents.update.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
-        queryClient.invalidateQueries(trpc.agents.list.queryFilter());
       },
     }),
   );
@@ -484,33 +476,6 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h2 className="text-base font-semibold">Recording</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Control call recording for this agent.</p>
-          </div>
-          <Select
-            value={recordingType}
-            onValueChange={(value) => {
-              setRecordingType(value ?? "off");
-              recordingMutation.mutate({ id: agentId, data: { recordingType: value as "off" | "audio" | "video" } });
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="off">Off</SelectItem>
-                <SelectItem value="audio">Audio (MP3)</SelectItem>
-                <SelectItem value="video">Video (MP4)</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </div>
-      </section>
-
       <section className="rounded-xl border border-destructive/20 bg-card px-4 py-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -523,6 +488,122 @@ function SettingsSection({ agent, agentId, onDelete }: { agent: Record<string, u
           </Button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; agentId: string }) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const initialConfigs = useMemo(() => {
+    const raw = agent.egressConfigs;
+    if (!Array.isArray(raw)) return [];
+    return (raw as { type: string; frameIntervalSec?: number }[]).map((c) => ({
+      type: c.type as (typeof EGRESS_TYPES)[number],
+      frameIntervalSec: c.frameIntervalSec,
+    }));
+  }, [agent.egressConfigs]);
+  const [egressConfigs, setEgressConfigs] = useState<{ type: (typeof EGRESS_TYPES)[number]; frameIntervalSec?: number }[]>(initialConfigs);
+  const [hasChanges, setHasChanges] = useState(false);
+
+  const update = useMutation(
+    trpc.agents.update.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.agents.byId.queryFilter({ id: agentId }));
+        queryClient.invalidateQueries(trpc.agents.list.queryFilter());
+        setHasChanges(false);
+      },
+    }),
+  );
+
+  const availableTypes = useMemo(() => {
+    const used = new Set(egressConfigs.map((c) => c.type));
+    return EGRESS_TYPES.filter((t) => !used.has(t));
+  }, [egressConfigs]);
+
+  const addEgress = (type: (typeof EGRESS_TYPES)[number]) => {
+    const next = [...egressConfigs, { type, ...(type === "frames" ? { frameIntervalSec: 5 } : {}) }];
+    setEgressConfigs(next);
+    setHasChanges(true);
+  };
+
+  const removeEgress = (index: number) => {
+    const next = egressConfigs.filter((_, i) => i !== index);
+    setEgressConfigs(next);
+    setHasChanges(true);
+  };
+
+  const updateFrameInterval = (index: number, value: number) => {
+    const next = egressConfigs.map((c, i) => (i === index ? { ...c, frameIntervalSec: value } : c));
+    setEgressConfigs(next);
+    setHasChanges(true);
+  };
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <section className="rounded-xl border bg-card p-4">
+        <div>
+          <h2 className="text-base font-semibold">Egress streams</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Configure which outputs are captured during calls. Each agent can have up to {MAX_EGRESS_COUNT} streams.
+          </p>
+        </div>
+
+        {egressConfigs.length === 0 ? (
+          <div className="mt-4 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+            No egress configured. This agent will not record or capture frames.
+          </div>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {egressConfigs.map((cfg, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border px-3 py-2">
+                <Badge variant="secondary" className="uppercase text-xs">
+                  {cfg.type}
+                </Badge>
+                {cfg.type === "frames" && (
+                  <Select
+                    value={String(cfg.frameIntervalSec ?? 5)}
+                    onValueChange={(v) => updateFrameInterval(i, Number(v))}
+                  >
+                    <SelectTrigger className="h-8 w-[160px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FRAME_INTERVAL_PRESETS.map((p) => (
+                        <SelectItem key={p.value} value={String(p.value)}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <div className="flex-1" />
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeEgress(i)}>
+                  <IconX className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {availableTypes.length > 0 && egressConfigs.length < MAX_EGRESS_COUNT && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {availableTypes.map((type) => (
+              <Button key={type} variant="outline" size="sm" onClick={() => addEgress(type)}>
+                <IconPlus className="mr-1 h-3 w-3" />
+                {type === "audio" ? "Audio (MP3)" : type === "video" ? "Video (MP4)" : "Frames (JPEG)"}
+              </Button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div className="flex justify-end">
+        <Button size="sm" disabled={!hasChanges || update.isPending} onClick={() => update.mutate({ id: agentId, data: { egressConfigs } })}>
+          {update.isPending ? <IconLoader className="animate-spin" data-icon="inline-start" /> : <IconDeviceFloppy data-icon="inline-start" />}
+          Save changes
+        </Button>
+      </div>
     </div>
   );
 }

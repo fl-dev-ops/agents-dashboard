@@ -6,8 +6,13 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class RecordingConfig:
-    database_url: str = ""
-    s3_egress_enabled: bool = True
+    """S3 infrastructure config for egress uploads.
+
+    This is purely infrastructure — bucket, region, credentials.
+    Whether egress is enabled and which types are active is determined
+    by the agent's egress_configs, not by env vars.
+    """
+
     s3_bucket: str = ""
     s3_region: str = "us-east-1"
     s3_endpoint: str = ""
@@ -15,20 +20,17 @@ class RecordingConfig:
     s3_secret_key: str = ""
     s3_force_path_style: bool = False
     s3_base_prefix: str = "agents"
-    webhook_url: str = ""
     egress_poll_timeout_seconds: int = 45
 
     @property
-    def enabled(self) -> bool:
-        return bool(self.s3_egress_enabled and self.s3_bucket)
+    def available(self) -> bool:
+        """True if S3 credentials are configured enough to upload."""
+        return bool(self.s3_bucket)
 
 
 def build_recording_config(env: dict[str, str] | None = None) -> RecordingConfig:
     values = os.environ if env is None else env
     return RecordingConfig(
-        database_url=values.get("DATABASE_URL", ""),
-        s3_egress_enabled=values.get("ENABLE_RECORDING", "true").lower()
-        in ("1", "true", "yes"),
         s3_bucket=values.get("AWS_S3_BUCKET", ""),
         s3_region=values.get("AWS_DEFAULT_REGION", "us-east-1"),
         s3_endpoint=values.get("AWS_S3_ENDPOINT", ""),
@@ -37,7 +39,6 @@ def build_recording_config(env: dict[str, str] | None = None) -> RecordingConfig
         s3_force_path_style=values.get("AWS_S3_FORCE_PATH_STYLE", "").lower()
         in ("1", "true", "yes"),
         s3_base_prefix=values.get("S3_BASE_PREFIX", "agents"),
-        webhook_url=values.get("WEBHOOK_URL", ""),
         egress_poll_timeout_seconds=int(
             values.get("EGRESS_POLL_TIMEOUT_SECONDS", "45")
         ),

@@ -15,7 +15,7 @@ from clients.chromadb import (
     build_knowledge_base_config,
     with_collection,
 )
-from recording.config import RecordingConfig, build_recording_config
+from recording.config import RecordingConfig, build_recording_config  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

@@ -70,7 +70,7 @@ export default function NewAgentPage() {
       description: form.description || undefined,
       voiceDictId: form.voiceDictId || undefined,
       knowledgeBaseCollection: form.knowledgeBaseCollection || undefined,
-      recordingType: form.recordingType as "off" | "audio" | "video",
+      egressConfigs: form.egressConfigs,
     });
   };
 

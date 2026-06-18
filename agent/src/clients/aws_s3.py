@@ -74,6 +74,18 @@ def build_video_s3_key(
     return build_s3_key(agent_type, room_name, "video.mp4", base_prefix, now)
 
 
+def build_frames_s3_key(
+    agent_type: str,
+    room_name: str,
+    base_prefix: str = "agents",
+    now: datetime | None = None,
+) -> str:
+    """Build S3 prefix for frame images. LiveKit writes frame_NNNN.jpg under this path."""
+    ts = now or datetime.now(timezone.utc)
+    date_path = ts.strftime("%Y/%m/%d")
+    return f"{base_prefix}/{agent_type}/sessions/{date_path}/{room_name}/frames"
+
+
 def build_transcript_s3_key(
     agent_type: str,
     room_name: str,

@@ -1,7 +1,30 @@
 import { z } from "zod";
 
+import { MAX_EGRESS_COUNT } from "@/lib/dashboard-types";
 import { prisma } from "@/lib/prisma";
 import { baseProcedure, createTRPCRouter } from "@/trpc/init";
+
+const egressConfigSchema = z
+  .object({
+    type: z.enum(["audio", "video", "frames"]),
+    frameIntervalSec: z.number().int().min(1).max(60).optional(),
+  })
+  .refine(
+    (config) => config.type !== "frames" || (config.frameIntervalSec != null && config.frameIntervalSec > 0),
+    { message: "frameIntervalSec is required when type is 'frames'" },
+  );
+
+const egressConfigsSchema = z
+  .array(egressConfigSchema)
+  .max(MAX_EGRESS_COUNT, `Maximum ${MAX_EGRESS_COUNT} egress configs allowed`)
+  .refine(
+    (configs) => {
+      const types = configs.map((c) => c.type);
+      return new Set(types).size === types.length;
+    },
+    { message: "Duplicate egress types are not allowed" },
+  )
+  .default([]);
 
 const agentInput = z.object({
   agentId: z.string().min(1).regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers, and hyphens"),
@@ -18,7 +41,7 @@ const agentInput = z.object({
   memoryEnabled: z.boolean().default(false),
   knowledgeBaseCollection: z.string().optional(),
   knowledgeBaseShape: z.string().default("simple"),
-  recordingType: z.enum(["off", "audio", "video"]).default("off"),
+  egressConfigs: egressConfigsSchema,
   isActive: z.boolean().default(true),
 });
 
@@ -35,7 +58,7 @@ const agentUpdateInput = agentInput
     memoryEnabled: z.boolean().optional(),
     knowledgeBaseShape: z.string().optional(),
     isActive: z.boolean().optional(),
-    recordingType: z.enum(["off", "audio", "video"]).optional(),
+    egressConfigs: egressConfigsSchema.optional(),
   });
 
 

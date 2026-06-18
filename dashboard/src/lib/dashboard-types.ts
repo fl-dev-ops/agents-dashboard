@@ -6,6 +6,21 @@ export function sanitizeAgentId(value: string): string {
     .replace(/[^a-z0-9-]/g, "");
 }
 
+export type EgressConfig = {
+  type: "audio" | "video" | "frames";
+  frameIntervalSec?: number;
+};
+
+export const EGRESS_TYPES = ["audio", "video", "frames"] as const;
+export const MAX_EGRESS_COUNT = 3;
+
+export const FRAME_INTERVAL_PRESETS = [
+  { label: "High (1 fps)", value: 1 },
+  { label: "Medium (1/5s)", value: 5 },
+  { label: "Low (1/15s)", value: 15 },
+  { label: "Sparse (1/30s)", value: 30 },
+] as const;
+
 export type AgentForm = {
   agentId: string;
   name: string;
@@ -19,7 +34,7 @@ export type AgentForm = {
   memoryEnabled: boolean;
   knowledgeBaseCollection: string;
   knowledgeBaseShape: string;
-  recordingType: string;
+  egressConfigs: EgressConfig[];
 };
 
 export type NumberForm = {
@@ -78,6 +93,7 @@ export type DashboardCall = {
   durationMs?: number | null;
   audioUrl?: string | null;
   videoUrl?: string | null;
+  framesUrl?: string | null;
   transcriptUrl?: string | null;
   verboseUrl?: string | null;
   transcript?: unknown;
@@ -105,7 +121,7 @@ export const emptyAgentForm: AgentForm = {
   memoryEnabled: false,
   knowledgeBaseCollection: "",
   knowledgeBaseShape: "simple",
-  recordingType: "off",
+  egressConfigs: [],
 };
 
 export const emptyNumberForm: NumberForm = {
