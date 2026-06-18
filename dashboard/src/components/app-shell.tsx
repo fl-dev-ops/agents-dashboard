@@ -6,13 +6,16 @@ import {
   IconBrowser,
   IconChartBar,
   IconLayoutDashboard,
+  IconMoon,
   IconPhone,
   IconPhoneCall,
   IconRobot,
-  IconSettings,
+  IconSun,
 } from "@tabler/icons-react";
+import { useTheme } from "next-themes";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -111,6 +114,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon-xs" className="group-data-[collapsible=icon]:hidden" disabled>
+        <IconSun className="size-4" />
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      className="group-data-[collapsible=icon]:hidden"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+    >
+      {theme === "dark" ? <IconSun className="size-4" /> : <IconMoon className="size-4" />}
+    </Button>
+  );
+}
+
 function DashboardSidebar({ pathname }: { pathname: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -174,13 +204,7 @@ function DashboardSidebar({ pathname }: { pathname: string }) {
               Operator access
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className="group-data-[collapsible=icon]:hidden"
-          >
-            <IconSettings />
-          </Button>
+          <ThemeToggle />
         </div>
       </SidebarFooter>
     </div>
