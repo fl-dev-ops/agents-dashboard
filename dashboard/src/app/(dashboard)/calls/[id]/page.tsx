@@ -5,6 +5,7 @@ import {
   IconExternalLink,
   IconFileText,
   IconMicrophone,
+  IconPhoto,
   IconPlayerPlay,
   IconRobot,
   IconTimeline,
@@ -223,28 +224,6 @@ function OverviewTab({
   return (
     <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
       <div className="min-w-0 space-y-8">
-        {/* Recording */}
-        <section className="rounded-xl border bg-card">
-          <div className="flex items-center gap-2 border-b px-4 py-3">
-            <IconPlayerPlay className="size-4 text-primary" />
-            <div>
-              <h2 className="text-base font-semibold">Recording</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Playback appears when the worker posts artifacts.</p>
-            </div>
-          </div>
-          <div className="p-4">
-            {(() => {
-              const isSip = Boolean(data.toNumber || data.fromNumber);
-              const hasVideo = Boolean(data.videoUrl);
-              const hasAudio = Boolean(data.audioUrl);
-              if (!isSip && hasVideo) return <video src={data.videoUrl!} controls className="w-full rounded-lg border" />;
-              if (hasAudio) return <audio src={data.audioUrl!} controls className="w-full" />;
-              if (hasVideo) return <video src={data.videoUrl!} controls className="w-full rounded-lg border" />;
-              return <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">No recording yet.</div>;
-            })()}
-          </div>
-        </section>
-
         {/* Transcript */}
         <section className="rounded-xl border bg-card">
           <div className="flex items-center justify-between border-b px-4 py-3">
@@ -394,54 +373,104 @@ function EventBadge({ eventType }: { eventType: string }) {
 // ---------------------------------------------------------------------------
 
 function ArtifactsTab({ data }: { data: DashboardCall }) {
-  const artifacts = [
-    { label: "Audio Recording", href: data.audioUrl, description: "MP3 audio of the session" },
-    { label: "Video Recording", href: data.videoUrl, description: "MP4 video of the session" },
+  const hasAudio = Boolean(data.audioUrl);
+  const hasVideo = Boolean(data.videoUrl);
+  const hasFrames = Boolean(data.framesUrl);
+  const hasRecordings = hasAudio || hasVideo || hasFrames;
+
+  const exports = [
     { label: "Transcript JSON", href: data.transcriptUrl, description: "Structured transcript with turns and timestamps" },
     { label: "Verbose JSON", href: data.verboseUrl, description: "Full session payload with metadata" },
   ].filter((a) => Boolean(a.href));
 
-  if (artifacts.length === 0) {
-    return (
-      <div className="rounded-xl border bg-card">
-        <div className="flex items-center gap-2 px-4 py-3">
-          <IconFileText className="size-4 text-muted-foreground" />
-          <h2 className="text-base font-semibold">Artifacts</h2>
-        </div>
-        <div className="border-t p-4">
-          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            No artifacts available yet.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="rounded-xl border bg-card">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <IconFileText className="size-4 text-muted-foreground" />
-        <h2 className="text-base font-semibold">Artifacts</h2>
-      </div>
-      <div className="divide-y">
-        {artifacts.map((a) => (
-          <div key={a.label} className="flex items-center justify-between gap-4 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-sm font-medium">{a.label}</p>
-              <p className="text-xs text-muted-foreground">{a.description}</p>
+    <div className="space-y-6">
+      {/* Recordings */}
+      <section className="rounded-xl border bg-card">
+        <div className="flex items-center gap-2 border-b px-4 py-3">
+          <IconPlayerPlay className="size-4 text-primary" />
+          <h2 className="text-base font-semibold">Recordings</h2>
+          {hasRecordings && (
+            <span className="ml-auto text-xs text-muted-foreground">
+              {[hasAudio && "Audio", hasVideo && "Video", hasFrames && "Frames"].filter(Boolean).join(" · ")}
+            </span>
+          )}
+        </div>
+        <div className="p-4">
+          {!hasRecordings ? (
+            <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+              No recordings available for this call.
             </div>
-            <Link
-              href={a.href!}
-              target="_blank"
-              rel="noreferrer"
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              Download
-              <IconExternalLink className="size-3.5" />
-            </Link>
+          ) : (
+            <div className="space-y-4">
+              {hasVideo && (
+                <div>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <IconVideo className="size-4 text-muted-foreground" />
+                    Video
+                  </div>
+                  <video src={data.videoUrl!} controls className="w-full rounded-lg border" />
+                </div>
+              )}
+              {hasAudio && (
+                <div>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <IconMicrophone className="size-4 text-muted-foreground" />
+                    Audio
+                  </div>
+                  <audio src={data.audioUrl!} controls className="w-full" />
+                </div>
+              )}
+              {hasFrames && (
+                <div>
+                  <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                    <IconPhoto className="size-4 text-muted-foreground" />
+                    Frames
+                  </div>
+                  <Link
+                    href={data.framesUrl!}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={buttonVariants({ variant: "outline", size: "sm" })}
+                  >
+                    View frames
+                    <IconExternalLink className="size-3.5" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Exports */}
+      {exports.length > 0 && (
+        <section className="rounded-xl border bg-card">
+          <div className="flex items-center gap-2 border-b px-4 py-3">
+            <IconFileText className="size-4 text-muted-foreground" />
+            <h2 className="text-base font-semibold">Exports</h2>
           </div>
-        ))}
-      </div>
+          <div className="divide-y">
+            {exports.map((a) => (
+              <div key={a.label} className="flex items-center justify-between gap-4 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{a.label}</p>
+                  <p className="text-xs text-muted-foreground">{a.description}</p>
+                </div>
+                <Link
+                  href={a.href!}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  Download
+                  <IconExternalLink className="size-3.5" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ type CompletionPayload = {
   sessionId?: unknown;
   audio_url?: unknown;
   video_url?: unknown;
+  frames_url?: unknown;
   transcript_url?: unknown;
   verbose_url?: unknown;
   duration_ms?: unknown;
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
     ...(status != null ? { status } : {}),
     audioUrl: stringValue(payload.audio_url),
     videoUrl: stringValue(payload.video_url),
+    framesUrl: stringValue(payload.frames_url),
     transcriptUrl: stringValue(payload.transcript_url),
     verboseUrl: stringValue(payload.verbose_url),
     livekitJobId: stringValue(payload.livekit_job_id) || stringValue(payload.job_id) || stringValue(transcriptSession?.job_id),
