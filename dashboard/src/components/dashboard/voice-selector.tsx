@@ -54,7 +54,7 @@ const VOICE_ITEMS: SearchSelectItem[] = [
 export function VoiceSelector({
   value,
   onChange,
-  className,
+  className = "w-full",
 }: {
   value: string;
   onChange: (value: string) => void;

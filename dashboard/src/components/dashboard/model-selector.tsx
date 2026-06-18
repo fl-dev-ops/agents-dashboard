@@ -55,7 +55,7 @@ interface ModelSelectorProps {
   className?: string;
 }
 
-export function ModelSelector({ value, onChange, className }: ModelSelectorProps) {
+export function ModelSelector({ value, onChange, className = "w-full" }: ModelSelectorProps) {
   return (
     <SearchSelect
       value={value}
