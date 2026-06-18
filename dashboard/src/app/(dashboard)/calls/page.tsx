@@ -247,10 +247,10 @@ function CallsContent() {
             <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={(event) => handleSearch(event.target.value)} placeholder="Search by ID, room, agent, or number" className="pl-8" />
           </div>
-          <div className="flex flex-1 flex-wrap gap-2">
+          <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-4">
             {/* Status filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
                 Status: {selectedStatusLabel(statuses, STATUS_OPTIONS.length)}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -276,7 +276,7 @@ function CallsContent() {
 
             {/* Type filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
                 Type: {selectedTypeLabel(types, TYPE_OPTIONS.length)}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -302,7 +302,7 @@ function CallsContent() {
 
             {/* Agent filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
                 Agent: {agentId ? agentRows.find((a) => a.id === agentId)?.name ?? "Unknown" : "All agents"}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -331,7 +331,7 @@ function CallsContent() {
 
             {/* Sort */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
                 Sort: {SORT_OPTIONS.find((o) => o.value === `${sortBy}:${sortDir}`)?.label ?? "Newest"}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
