@@ -18,9 +18,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ModelSelector } from "@/components/dashboard/model-selector";
+import { VoiceSelector } from "@/components/dashboard/voice-selector";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SettingsRow } from "@/components/dashboard/settings-row";
-import { Item, ItemMedia, ItemContent, ItemActions, ItemGroup, ItemTitle, ItemDescription } from "@/components/ui/item";
+import { Item, ItemMedia, ItemContent, ItemActions, ItemTitle, ItemDescription } from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -431,7 +432,7 @@ function PromptSection({ agent, agentId }: { agent: Record<string, unknown>; age
           <ModelSelector value={form.model} onChange={(v) => setField("model", v)} />
         </SideField>
         <SideField title="Speaker" description="TTS provider voice name.">
-          <Input value={form.voiceSpeaker} onChange={(event) => setField("voiceSpeaker", event.target.value)} placeholder="ishita" />
+          <VoiceSelector value={form.voiceSpeaker} onChange={(v) => setField("voiceSpeaker", v)} />
         </SideField>
       </section>
     </div>
@@ -567,7 +568,7 @@ function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; 
             No egress configured. This agent will not record or capture frames.
           </div>
         ) : (
-          <ItemGroup className="mt-4">
+          <div className="mt-4 flex flex-col gap-3">
             {egressConfigs.map((cfg, i) => {
               const meta = EGRESS_LABELS[cfg.type];
               return (
@@ -606,11 +607,11 @@ function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; 
                 </Item>
               );
             })}
-          </ItemGroup>
+          </div>
         )}
 
         {availableTypes.length > 0 && egressConfigs.length < MAX_EGRESS_COUNT && (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             {availableTypes.map((type) => (
               <Button key={type} variant="outline" size="sm" onClick={() => addEgress(type)}>
                 <IconPlus className="mr-1 h-3 w-3" />
@@ -621,7 +622,7 @@ function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; 
         )}
       </section>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-2">
         <Button size="sm" disabled={!hasChanges || update.isPending} onClick={() => update.mutate({ id: agentId, data: { egressConfigs } })}>
           {update.isPending ? <IconLoader className="animate-spin" data-icon="inline-start" /> : <IconDeviceFloppy data-icon="inline-start" />}
           Save changes
@@ -655,7 +656,7 @@ function VoiceSection({ agent, agentId }: { agent: Record<string, unknown>; agen
         <ModelSelector value={model} onChange={(v) => { setModel(v); setHasChanges(true); }} />
       </SettingsRow>
       <SettingsRow title="Speaker" description="Speaker name maps to your TTS provider voice.">
-        <Input value={voiceSpeaker} onChange={(event) => { setVoiceSpeaker(event.target.value); setHasChanges(true); }} placeholder="ishita" />
+        <VoiceSelector value={voiceSpeaker} onChange={(v) => { setVoiceSpeaker(v); setHasChanges(true); }} />
       </SettingsRow>
       <SettingsRow title="Voice dict ID" description="Optional dictionary identifier.">
         <Input value={voiceDictId} onChange={(event) => { setVoiceDictId(event.target.value); setHasChanges(true); }} placeholder="Optional" />
