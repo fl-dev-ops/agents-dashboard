@@ -242,15 +242,14 @@ function CallsContent() {
 
       <section className="rounded-xl border bg-card">
         {/* Filters row */}
-        <div className="flex flex-col gap-3 border-b px-4 py-3 lg:flex-row lg:items-center">
-          <div className="relative flex-1">
+        <div className="grid grid-cols-1 gap-2 border-b px-4 py-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="relative">
             <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => handleSearch(event.target.value)} placeholder="Search by ID, room, agent, or number" className="pl-8" />
+            <Input value={search} onChange={(event) => handleSearch(event.target.value)} placeholder="Search" className="pl-8" />
           </div>
-          <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-4">
-            {/* Status filter */}
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
+          {/* Status filter */}
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
                 Status: {selectedStatusLabel(statuses, STATUS_OPTIONS.length)}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -276,7 +275,7 @@ function CallsContent() {
 
             {/* Type filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
                 Type: {selectedTypeLabel(types, TYPE_OPTIONS.length)}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -302,7 +301,7 @@ function CallsContent() {
 
             {/* Agent filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
                 Agent: {agentId ? agentRows.find((a) => a.id === agentId)?.name ?? "Unknown" : "All agents"}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -331,7 +330,7 @@ function CallsContent() {
 
             {/* Sort */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
                 Sort: {SORT_OPTIONS.find((o) => o.value === `${sortBy}:${sortDir}`)?.label ?? "Newest"}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -354,7 +353,6 @@ function CallsContent() {
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
         </div>
 
         {/* Date range + active filter chips */}
