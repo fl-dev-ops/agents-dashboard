@@ -26,8 +26,6 @@ const BULBUL_V3_VOICES = {
     { id: "suhani", label: "Suhani" },
     { id: "kavitha", label: "Kavitha" },
     { id: "rupali", label: "Rupali" },
-    { id: "amelia", label: "Amelia" },
-    { id: "sophia", label: "Sophia" },
   ],
   male: [
     { id: "shubh", label: "Shubh" },
@@ -73,7 +71,7 @@ export function VoiceSelector({
 }) {
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)}>
-      <SelectTrigger className={className}>
+      <SelectTrigger className={className ?? "w-full"}>
         <SelectValue placeholder="Select a voice" />
       </SelectTrigger>
       <SelectContent>
