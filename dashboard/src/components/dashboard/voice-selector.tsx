@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SearchSelect, type SearchSelectItem } from "@/components/dashboard/search-select";
 
 const BULBUL_V3_VOICES = {
   female: [
@@ -54,11 +46,10 @@ const BULBUL_V3_VOICES = {
   ],
 } as const;
 
-function getGender(id: string): string {
-  if (BULBUL_V3_VOICES.female.some((v) => v.id === id)) return "Female";
-  if (BULBUL_V3_VOICES.male.some((v) => v.id === id)) return "Male";
-  return "";
-}
+const VOICE_ITEMS: SearchSelectItem[] = [
+  ...BULBUL_V3_VOICES.female.map((v) => ({ value: v.id, label: v.label, sublabel: "Female" })),
+  ...BULBUL_V3_VOICES.male.map((v) => ({ value: v.id, label: v.label, sublabel: "Male" })),
+];
 
 export function VoiceSelector({
   value,
@@ -70,30 +61,15 @@ export function VoiceSelector({
   className?: string;
 }) {
   return (
-    <Select value={value} onValueChange={(v) => v && onChange(v)}>
-      <SelectTrigger className={className ?? "w-full"}>
-        <SelectValue placeholder="Select a voice" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          <SelectLabel>Female</SelectLabel>
-          {BULBUL_V3_VOICES.female.map((v) => (
-            <SelectItem key={v.id} value={v.id}>
-              {v.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-        <SelectGroup>
-          <SelectLabel>Male</SelectLabel>
-          {BULBUL_V3_VOICES.male.map((v) => (
-            <SelectItem key={v.id} value={v.id}>
-              {v.label}
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+    <SearchSelect
+      value={value}
+      onChange={onChange}
+      items={VOICE_ITEMS}
+      placeholder="Select voice"
+      searchPlaceholder="Search voices…"
+      className={className}
+    />
   );
 }
 
-export { getGender, BULBUL_V3_VOICES };
+export { BULBUL_V3_VOICES };
