@@ -1,0 +1,8 @@
+ALTER TABLE "Call" ADD COLUMN "livekitJobId" TEXT;
+ALTER TABLE "Call" ADD COLUMN "durationMs" INTEGER;
+ALTER TABLE "Call" ADD COLUMN "audioUrl" TEXT;
+ALTER TABLE "Call" ADD COLUMN "videoUrl" TEXT;
+ALTER TABLE "Call" ADD COLUMN "transcriptUrl" TEXT;
+ALTER TABLE "Call" ADD COLUMN "verboseUrl" TEXT;
+ALTER TABLE "Call" ADD COLUMN "transcript" JSONB;
+ALTER TABLE "Call" ADD COLUMN "sessionPayload" JSONB;

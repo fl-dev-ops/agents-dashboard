@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Provider {
+  VOBIZ
+}
+
+enum PhoneNumberStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ProvisioningStatus {
+  PENDING
+  PROVISIONING
+  ACTIVE
+  FAILED
+  DISCONNECTED
+}
+
+enum CallType {
+  PLAYGROUND
+  OUTBOUND
+  INBOUND
+}
+
+enum CallStatus {
+  QUEUED
+  DIALING
+  RINGING
+  ACTIVE
+  COMPLETED
+  NO_ANSWER
+  BUSY
+  DECLINED
+  FAILED
+}
+
+model Agent {
+  id                      String        @id @default(cuid())
+  agentId                 String        @unique
+  name                    String
+  description             String?
+  // `prompt` holds the full system-prompt text. SQLite has no TEXT length cap
+  // (default SQLITE_MAX_LENGTH is 1 GB); the cap is enforced at the tRPC layer
+  // (see routers/agents.ts agentInput.prompt) and again in agent/prompt.py.
+  // When migrating to Postgres/MySQL, change to `String @db.Text` to remove
+  // Prisma's VARCHAR(191) default; @db.Text is rejected on SQLite.
+  prompt                  String
+  initialReply            String
+  model                   String        @default("openai/gpt-5.1")
+  voiceSpeaker            String
+  voiceDictId             String?
+  endCallEnabled          Boolean       @default(false)
+  memoryEnabled           Boolean       @default(false)
+  knowledgeBaseCollection String?
+  knowledgeBaseShape      String        @default("simple")
+  recordingType           String        @default("off")
+  isActive                Boolean       @default(true)
+  phoneNumbers            PhoneNumber[]
+  calls                   Call[]
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+}
+
+model PhoneNumber {
+  id                     String            @id @default(cuid())
+  provider               Provider          @default(VOBIZ)
+  e164                   String            @unique
+  label                  String?
+  country                String?
+  region                 String?
+  status                 PhoneNumberStatus @default(ACTIVE)
+  vobizNumberId          String?
+  vobizPayload           Json?
+  agentId                String?
+  agent                  Agent?            @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  connection             PhoneNumberConnection?
+  calls                  Call[]
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  @@index([agentId])
+}
+
+model PhoneNumberConnection {
+  id                      String             @id @default(cuid())
+  phoneNumberId           String             @unique
+  phoneNumber             PhoneNumber        @relation(fields: [phoneNumberId], references: [id], onDelete: Cascade)
+  status                  ProvisioningStatus @default(PENDING)
+  lastError               String?
+  vobizCredentialId       String?
+  vobizInboundTrunkId     String?
+  vobizOutboundTrunkId    String?
+  vobizInboundDomain      String?
+  vobizOutboundDomain     String?
+  livekitInboundTrunkId   String?
+  livekitOutboundTrunkId  String?
+  livekitDispatchRuleId   String?
+  livekitSipEndpoint      String?
+  rawVobizCredential      Json?
+  rawVobizInboundTrunk    Json?
+  rawVobizOutboundTrunk   Json?
+  rawLiveKitInboundTrunk  Json?
+  rawLiveKitOutboundTrunk Json?
+  rawLiveKitDispatchRule  Json?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+}
+
+model Call {
+  id                     String      @id @default(cuid())
+  type                   CallType
+  status                 CallStatus  @default(QUEUED)
+  roomName               String      @unique
+  toNumber               String?
+  fromNumber             String?
+  agentId                String?
+  agent                  Agent?      @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  phoneNumberId          String?
+  phoneNumber            PhoneNumber? @relation(fields: [phoneNumberId], references: [id], onDelete: SetNull)
+  livekitDispatchId      String?
+  livekitSipParticipantId String?
+  livekitSipCallId       String?
+  livekitJobId           String?
+  errorMessage           String?
+  durationMs             Int?
+  audioUrl               String?
+  videoUrl               String?
+  transcriptUrl          String?
+  verboseUrl             String?
+  transcript             Json?
+  sessionPayload         Json?
+  metadata               Json?
+  startedAt              DateTime?
+  endedAt                DateTime?
+  createdAt              DateTime    @default(now())
+  updatedAt              DateTime    @updatedAt
+  events                 WebhookEvent[]
+  evaluations            EvaluationRun[]
+
+  @@index([agentId])
+  @@index([phoneNumberId])
+  @@index([status])
+}
+
+model WebhookEvent {
+  id                    String   @id @default(cuid())
+  eventId               String   @unique
+  callId                String
+  call                  Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  eventType             String
+  participantSid        String?
+  participantIdentity   String?
+  participantKind       String?
+  trackSid              String?
+  trackType             String?
+  trackSource           String?
+  rawData               Json?
+  occurredAt            DateTime
+  createdAt             DateTime @default(now())
+
+  @@index([callId])
+  @@index([eventType])
+  @@index([callId, occurredAt])
+}
+
+model EvaluationConfig {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  prompt      String
+  schema      Json
+  model       String         @default("gpt-4o-mini")
+  runs        EvaluationRun[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model EvaluationRun {
+  id          String            @id @default(cuid())
+  configId    String
+  config      EvaluationConfig  @relation(fields: [configId], references: [id], onDelete: Cascade)
+  callId      String
+  call        Call              @relation(fields: [callId], references: [id], onDelete: Cascade)
+  result      Json?
+  error       String?
+  model       String
+  usage       Json?
+  durationMs  Int?
+  createdAt   DateTime          @default(now())
+
+  @@index([callId])
+  @@index([configId])
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}

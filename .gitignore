@@ -1,0 +1,112 @@
+# ============================================================
+# Intervoo — root .gitignore
+# Tracks both apps: agent/ (Python) and dashboard/ (Next.js).
+# ============================================================
+
+# OS / editor
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Secrets & local config (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Logs / temp
+*.log
+*.log.*
+*.tmp
+*.temp
+.cache/
+.turbo/
+
+# ============================================================
+# Python (agent/)
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+agent/.venv/
+agent/venv/
+agent/env/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+dist/
+build/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# LiveKit agent runtime artifacts (large outputs, never source)
+agent/verbose.json
+agent/.artifacts/
+agent/.livekit-cli/
+
+# ============================================================
+# Node / Next.js / TypeScript (dashboard/)
+# ============================================================
+dashboard/node_modules/
+dashboard/.pnp
+dashboard/.pnp.*
+dashboard/.yarn/*
+!dashboard/.yarn/patches
+!dashboard/.yarn/plugins
+!dashboard/.yarn/releases
+!dashboard/.yarn/versions
+
+# Next.js
+dashboard/.next/
+dashboard/out/
+dashboard/build/
+
+# TypeScript
+dashboard/*.tsbuildinfo
+dashboard/next-env.d.ts
+dashboard/src/generated/prisma/
+
+# Database (SQLite dev)
+dashboard/dev.db
+dashboard/dev.db-journal
+dashboard/prisma/dev.db
+dashboard/prisma/dev.db-journal
+
+# Vercel
+.vercel
+
+# Test artifacts
+dashboard/coverage/
+dashboard/.nyc_output/
+
+# Bun
+dashboard/bun.lockb
+
+# SWC
+dashboard/.swc/
+
+# ============================================================
+# Monorepo / split later
+# ============================================================
+# When agent/ and dashboard/ are eventually split into separate repos,
+# each app should keep its own scoped .gitignore at its root.

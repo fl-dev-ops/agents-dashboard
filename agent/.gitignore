@@ -1,0 +1,40 @@
+# agent/
+
+# Local tooling caches (NOT test files themselves)
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Python bytecode and build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Logs and temp files
+*.log
+*.gz
+*.tgz
+*.tmp
+.cache/
+
+# Local config
+.env
+.env.*
+
+# VCS, editor, OS
+.idea/
+.vscode/
+.DS_Store
+
+# Runtime artifacts
+verbose.json
+.livekit-cli/
