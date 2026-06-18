@@ -5,10 +5,13 @@ import {
   IconArrowLeft,
   IconDeviceFloppy,
   IconLoader,
+  IconMicrophone,
+  IconPhoto,
   IconPhone,
   IconPhoneOff,
   IconPlus,
   IconTrash,
+  IconVideo,
   IconX,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -17,6 +20,7 @@ import { Suspense, use, useCallback, useEffect, useMemo, useState, type ReactNod
 import { ModelSelector } from "@/components/dashboard/model-selector";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SettingsRow } from "@/components/dashboard/settings-row";
+import { Item, ItemMedia, ItemContent, ItemActions, ItemGroup, ItemTitle, ItemDescription } from "@/components/ui/item";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -539,6 +543,15 @@ function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; 
     setHasChanges(true);
   };
 
+  const EGRESS_LABELS: Record<string, { label: string; description: string; icon: ReactNode }> = {
+    audio: { label: "Audio", description: "MP3 recording of the call", icon: <IconMicrophone className="size-4" /> },
+    video: { label: "Video", description: "MP4 screen recording", icon: <IconVideo className="size-4" /> },
+    frames: { label: "Frames", description: "JPEG snapshots at intervals", icon: <IconPhoto className="size-4" /> },
+  };
+
+  const getFrameIntervalLabel = (sec?: number) =>
+    FRAME_INTERVAL_PRESETS.find((p) => p.value === sec)?.label ?? `${sec ?? 5}s`;
+
   return (
     <div className="max-w-3xl space-y-6">
       <section className="rounded-xl border bg-card p-4">
@@ -554,36 +567,46 @@ function RecordingSection({ agent, agentId }: { agent: Record<string, unknown>; 
             No egress configured. This agent will not record or capture frames.
           </div>
         ) : (
-          <div className="mt-4 space-y-3">
-            {egressConfigs.map((cfg, i) => (
-              <div key={i} className="flex items-center gap-3 rounded-lg border px-3 py-2">
-                <Badge variant="secondary" className="uppercase text-xs">
-                  {cfg.type}
-                </Badge>
-                {cfg.type === "frames" && (
-                  <Select
-                    value={String(cfg.frameIntervalSec ?? 5)}
-                    onValueChange={(v) => updateFrameInterval(i, Number(v))}
-                  >
-                    <SelectTrigger className="h-8 w-[160px] text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FRAME_INTERVAL_PRESETS.map((p) => (
-                        <SelectItem key={p.value} value={String(p.value)}>
-                          {p.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <div className="flex-1" />
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeEgress(i)}>
-                  <IconX className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
+          <ItemGroup className="mt-4">
+            {egressConfigs.map((cfg, i) => {
+              const meta = EGRESS_LABELS[cfg.type];
+              return (
+                <Item key={i} variant="outline" size="sm">
+                  <ItemMedia variant="icon">{meta?.icon}</ItemMedia>
+                  <ItemContent>
+                    <ItemTitle>{meta?.label ?? cfg.type}</ItemTitle>
+                    <ItemDescription>
+                      {cfg.type === "frames"
+                        ? `${meta?.description} — ${getFrameIntervalLabel(cfg.frameIntervalSec)}`
+                        : meta?.description}
+                    </ItemDescription>
+                  </ItemContent>
+                  <ItemActions>
+                    {cfg.type === "frames" && (
+                      <Select
+                        value={String(cfg.frameIntervalSec ?? 5)}
+                        onValueChange={(v) => updateFrameInterval(i, Number(v))}
+                      >
+                        <SelectTrigger className="h-8 w-[140px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FRAME_INTERVAL_PRESETS.map((p) => (
+                            <SelectItem key={p.value} value={String(p.value)}>
+                              {p.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => removeEgress(i)}>
+                      <IconX className="size-4" />
+                    </Button>
+                  </ItemActions>
+                </Item>
+              );
+            })}
+          </ItemGroup>
         )}
 
         {availableTypes.length > 0 && egressConfigs.length < MAX_EGRESS_COUNT && (
