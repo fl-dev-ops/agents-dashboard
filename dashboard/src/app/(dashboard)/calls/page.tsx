@@ -249,7 +249,7 @@ function CallsContent() {
           </div>
           {/* Status filter */}
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
+            <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-between" />}>
                 Status: {selectedStatusLabel(statuses, STATUS_OPTIONS.length)}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -275,7 +275,7 @@ function CallsContent() {
 
             {/* Type filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-between" />}>
                 Type: {selectedTypeLabel(types, TYPE_OPTIONS.length)}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -301,7 +301,7 @@ function CallsContent() {
 
             {/* Agent filter */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-between" />}>
                 Agent: {agentId ? agentRows.find((a) => a.id === agentId)?.name ?? "Unknown" : "All agents"}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
@@ -330,7 +330,7 @@ function CallsContent() {
 
             {/* Sort */}
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-around" />}>
+              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="w-full justify-between" />}>
                 Sort: {SORT_OPTIONS.find((o) => o.value === `${sortBy}:${sortDir}`)?.label ?? "Newest"}
                 <IconChevronDown data-icon="inline-end" />
               </DropdownMenuTrigger>
