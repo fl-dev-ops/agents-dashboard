@@ -242,12 +242,12 @@ function CallsContent() {
 
       <section className="rounded-xl border bg-card">
         {/* Filters row */}
-        <div className="flex flex-col gap-3 border-b px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="relative w-full max-w-md">
+        <div className="flex flex-col gap-3 border-b px-4 py-3 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
             <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={(event) => handleSearch(event.target.value)} placeholder="Search by ID, room, agent, or number" className="pl-8" />
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-1 flex-wrap gap-2">
             {/* Status filter */}
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>

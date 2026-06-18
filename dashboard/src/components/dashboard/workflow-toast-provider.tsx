@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { useTRPC } from "@/trpc/client";
 
-const POLL_INTERVAL_MS = 1500;
+const POLL_INTERVAL_MS = 5000;
 const DISMISSED_KEY_PREFIX = "workflow-toast-dismissed:";
 const TERMINAL_SHOWN_KEY_PREFIX = "workflow-toast-terminal-shown:";
 
